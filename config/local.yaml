@@ -1,0 +1,6 @@
+env: "local" #defining environment (local, dev, prod ...)
+storage_path: "./storage/storage.db"
+http_server:
+  address: "localhost:8888"
+  timeout: 5s #timeout for reading request and sending response
+  idle_timeout: 60s #timeout for connection with client
