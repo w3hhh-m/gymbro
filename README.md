@@ -6,7 +6,7 @@ GYMBRO API REPO
 ## Dependencies
 1) **cleanenv** - parsing configuration
 2) **slog** - logging
-3) **sqlite3** - DB (need to be replaced)
+3) **sqlite3** - DB
 4) **chi** - router
 
 ## Note
@@ -22,6 +22,14 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 │       local.yaml
 │
 └───internal == Folder with internal handlers 
-    └───config
-            config.go == Config handler (getting parameters from file)
+│   ├───config
+│   │       config.go == Config handler (getting parameters from file)
+│   │
+│   └───storage == Common things for all possible storages (not only sqlite)
+│   │       storage.go
+│   │
+│   └───sqlite == Code only related to sqlite storage (init ...)
+│           sqlite.go
+│
+└───storage == Folder where sqlite3 database(.db file) are located
 ```
