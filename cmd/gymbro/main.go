@@ -2,9 +2,12 @@ package main
 
 import (
 	"GYMBRO/internal/config"
+	"GYMBRO/internal/storage"
 	"GYMBRO/internal/storage/sqlite"
+	"fmt"
 	"log/slog"
 	"os"
+	"time"
 )
 
 func main() {
@@ -14,14 +17,30 @@ func main() {
 	log.Info("Configuration loaded.")
 	log.Info("Logger loaded.")
 
-	storage, err := sqlite.New(cfg.StoragePath)
+	db, err := sqlite.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("Error initializing storage.", slog.Any("error", err))
 		os.Exit(1)
 	}
-	_ = storage
+	_ = db
 	log.Info("Storage loaded.")
-
+	id, err := db.SaveExercise(storage.Exercise{
+		Username:  "qwerty",
+		Name:      "push ups",
+		Sets:      5,
+		Rps:       20,
+		Weight:    0,
+		Timestamp: time.Now(),
+	})
+	if err != nil {
+		log.Error("Error saving exercise.", slog.Any("error", err))
+	}
+	log.Info("Exercise saved.", slog.Any("exercise", id))
+	exercise, err := db.GetExercise(id)
+	if err != nil {
+		log.Error("Error retrieving exercise.", slog.Any("error", err))
+	}
+	fmt.Print(exercise)
 }
 
 // setupLogger is a function that initialize logger depends on environment

@@ -1,11 +1,25 @@
 package storage
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 // Common errors for storages
-
 // TODO: add more errors :)
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrExerciseNotFound = errors.New("exercise not found")
 )
+
+// Common structures
+
+type Exercise struct {
+	Id        int64
+	Username  string
+	Name      string
+	Sets      int
+	Rps       int
+	Weight    int
+	Timestamp time.Time
+}
