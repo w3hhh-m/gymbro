@@ -56,6 +56,7 @@ func (s *Storage) SaveExercise(ex storage.Exercise) (int64, error) {
 	return id, nil
 }
 
+// GetExercise is a method of Storage struct that is getting data of one exact exercise by given id
 func (s *Storage) GetExercise(id int64) (storage.Exercise, error) {
 	const op = "storage.sqlite.GetExercise"
 	var ex storage.Exercise
@@ -78,4 +79,22 @@ func (s *Storage) GetExercise(id int64) (storage.Exercise, error) {
 	}
 	ex.Timestamp = timestamp
 	return ex, nil
+}
+
+// DeleteExercise is a method of Storage struct that is deleting exact one exercise from database by its id
+func (s *Storage) DeleteExercise(id int64) error {
+	const op = "storage.sqlite.DeleteExercise"
+	stmt, err := s.db.Prepare(`DELETE FROM exercises WHERE id = ?`)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	_, err = stmt.Exec(id)
+	// TODO: doesnt work bco sql logic (deleting nonexistent row is OK)
+	if errors.Is(err, sql.ErrNoRows) {
+		return storage.ErrExerciseNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
 }

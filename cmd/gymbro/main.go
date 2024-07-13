@@ -2,12 +2,16 @@ package main
 
 import (
 	"GYMBRO/internal/config"
-	"GYMBRO/internal/storage"
+	"GYMBRO/internal/http-server/handlers/exercise/delete"
+	"GYMBRO/internal/http-server/handlers/exercise/get"
+	"GYMBRO/internal/http-server/handlers/exercise/save"
+	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/storage/sqlite"
-	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
+	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
@@ -22,25 +26,35 @@ func main() {
 		log.Error("Error initializing storage.", slog.Any("error", err))
 		os.Exit(1)
 	}
-	_ = db
+
 	log.Info("Storage loaded.")
-	id, err := db.SaveExercise(storage.Exercise{
-		Username:  "qwerty",
-		Name:      "push ups",
-		Sets:      5,
-		Rps:       20,
-		Weight:    0,
-		Timestamp: time.Now(),
-	})
-	if err != nil {
-		log.Error("Error saving exercise.", slog.Any("error", err))
+
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(mwlogger.New(log))
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.URLFormat)
+
+	router.Post("/exercise", save.New(log, db))
+	router.Get("/exercise/{id}", get.New(log, db))
+	router.Delete("/exercise/{id}", delete.New(log, db))
+
+	log.Info("starting server", slog.String("address", cfg.Address))
+
+	srv := http.Server{
+		Addr:         cfg.Address,
+		Handler:      router,
+		WriteTimeout: cfg.Timeout,
+		ReadTimeout:  cfg.Timeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
-	log.Info("Exercise saved.", slog.Any("exercise", id))
-	exercise, err := db.GetExercise(id)
-	if err != nil {
-		log.Error("Error retrieving exercise.", slog.Any("error", err))
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("Error starting server", slog.Any("error", err))
 	}
-	fmt.Print(exercise)
+
+	log.Error("Server shutdown", slog.String("address", cfg.Address))
 }
 
 // setupLogger is a function that initialize logger depends on environment
