@@ -6,6 +6,7 @@ import (
 	"GYMBRO/internal/http-server/handlers/exercise/get"
 	"GYMBRO/internal/http-server/handlers/exercise/save"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
+	"GYMBRO/internal/prettylogger"
 	"GYMBRO/internal/storage/sqlite"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -17,7 +18,7 @@ import (
 func main() {
 	cfg := config.MustLoad()
 
-	log := setupLogger(cfg.Env) // TODO: make logger look pretty
+	log := setupLogger(cfg.Env)
 	log.Info("Configuration loaded.")
 	log.Info("Logger loaded.")
 
@@ -65,8 +66,13 @@ func setupLogger(env string) *slog.Logger {
 	case "production":
 		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case "local":
-		log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		//got it from https://github.com/dusted-go/logging
+		prettyHandler := prettylogger.NewHandler(&slog.HandlerOptions{
+			Level:       slog.LevelInfo,
+			AddSource:   false,
+			ReplaceAttr: nil,
+		})
+		log = slog.New(prettyHandler)
 	}
-
 	return log
 }

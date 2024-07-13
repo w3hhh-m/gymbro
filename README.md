@@ -46,6 +46,9 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 │   │       └───logger == Logger for router (got request, took 1ms, etc.)
 │   │               logger.go
 │   │
+│   ├───prettylogger == Pretty logs for local env
+│   │       prettylogger.go
+│   │
 │   └───storage == Common things for all possible storages (not only sqlite)
 │       │   storage.go
 │       │
