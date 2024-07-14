@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3" //init sqlite3 driver
-	"time"
 )
 
 // Initializing sqlite storage
@@ -44,8 +43,7 @@ func (s *Storage) SaveExercise(ex storage.Exercise) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
-	// TODO: do time formatting in better places
-	res, err := stmt.Exec(ex.Username, ex.Name, ex.Sets, ex.Rps, ex.Weight, ex.Timestamp.Format("2006-01-02 15:04:05"))
+	res, err := stmt.Exec(ex.Username, ex.Name, ex.Sets, ex.Rps, ex.Weight, ex.Timestamp)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -64,20 +62,13 @@ func (s *Storage) GetExercise(id int64) (storage.Exercise, error) {
 	if err != nil {
 		return ex, fmt.Errorf("%s: %w", op, err)
 	}
-	// TODO: find better solution for temp
-	var tempTimestamp string
-	err = stmt.QueryRow(id).Scan(&ex.Id, &ex.Username, &ex.Name, &ex.Sets, &ex.Rps, &ex.Weight, &tempTimestamp)
+	err = stmt.QueryRow(id).Scan(&ex.Id, &ex.Username, &ex.Name, &ex.Sets, &ex.Rps, &ex.Weight, &ex.Timestamp)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ex, storage.ErrExerciseNotFound
 	}
 	if err != nil {
 		return ex, fmt.Errorf("%s: %w", op, err)
 	}
-	timestamp, err := time.Parse("2006-01-02 15:04:05", tempTimestamp)
-	if err != nil {
-		return ex, fmt.Errorf("%s: %w", op, err)
-	}
-	ex.Timestamp = timestamp
 	return ex, nil
 }
 
@@ -89,10 +80,6 @@ func (s *Storage) DeleteExercise(id int64) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	_, err = stmt.Exec(id)
-	// TODO: doesnt work bco sql logic (deleting nonexistent row is OK)
-	if errors.Is(err, sql.ErrNoRows) {
-		return storage.ErrExerciseNotFound
-	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

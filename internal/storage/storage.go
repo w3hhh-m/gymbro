@@ -2,11 +2,9 @@ package storage
 
 import (
 	"errors"
-	"time"
 )
 
 // Common errors for storages
-// TODO: add more errors :)
 
 var (
 	ErrExerciseNotFound = errors.New("exercise not found")
@@ -15,11 +13,11 @@ var (
 // Common structures
 
 type Exercise struct {
-	Id        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Name      string    `json:"name"`
-	Sets      int       `json:"sets"`
-	Rps       int       `json:"rps"`
-	Weight    int       `json:"weight"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
+	Id        int64  `json:"id"`
+	Username  string `json:"username" validate:"required"`
+	Name      string `json:"name" validate:"required"`
+	Sets      int    `json:"sets" validate:"required"`
+	Rps       int    `json:"rps" validate:"required"`
+	Weight    int    `json:"weight" validate:"required"`
+	Timestamp string `json:"timestamp"`
 }
