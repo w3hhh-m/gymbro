@@ -35,7 +35,7 @@ func main() {
 	router.Use(middleware.RealIP)
 	router.Use(mwlogger.New(log))
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.URLFormat)
+	router.Use(middleware.URLFormat) //to extract {var} from url
 
 	router.Post("/record", save.New(log, db))
 	router.Get("/record/{id}", get.New(log, db))

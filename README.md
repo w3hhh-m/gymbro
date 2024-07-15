@@ -1,5 +1,5 @@
 # GYMBRO
-GYMBRO API REPO
+GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, ...
 
 *... got inspiration from Nikolay Tuzov (just learning...)*
 
@@ -9,7 +9,7 @@ GYMBRO API REPO
 3) **pgx, pgxpool** - DB
 4) **chi** - router
 5) **chi/render** - manage HTTP request / response
-6) **validator** - validator :0 (*not used*)
+6) **validator** - validator :0
 
 ## Note
 Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*

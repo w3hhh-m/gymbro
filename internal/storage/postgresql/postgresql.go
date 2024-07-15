@@ -73,6 +73,3 @@ func (s *Storage) DeleteRecord(id int) error {
 	}
 	return nil
 }
-
-// TODO: add migrations
-// TODO: make indexes for usernames and exercises
