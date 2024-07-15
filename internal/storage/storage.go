@@ -2,22 +2,36 @@ package storage
 
 import (
 	"errors"
+	"time"
 )
 
 // Common errors for storages
 
 var (
-	ErrExerciseNotFound = errors.New("exercise not found")
+	ErrRecordNotFound = errors.New("record not found")
 )
 
 // Common structures
 
+type Record struct {
+	RecordId     int       `json:"record_id"`
+	FkUserId     int       `json:"fk_user_id" validate:"required"`
+	FkExerciseId int       `json:"fk_exercise_id" validate:"required"`
+	Reps         int       `json:"reps" validate:"required"`
+	Weight       int       `json:"weight" validate:"required"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type Exercise struct {
-	Id        int64  `json:"id"`
-	Username  string `json:"username" validate:"required"`
-	Name      string `json:"name" validate:"required"`
-	Sets      int    `json:"sets" validate:"required"`
-	Rps       int    `json:"rps" validate:"required"`
-	Weight    int    `json:"weight" validate:"required"`
-	Timestamp string `json:"timestamp"`
+	ExerciseId int    `json:"exercise_id"`
+	Name       string `json:"name"`
+}
+
+type User struct {
+	UserId      int       `json:"user_id"`
+	Username    string    `json:"username"`
+	Email       string    `json:"email"`
+	Password    string    `json:"password"`
+	DateOfBirth time.Time `json:"date_of_birth"`
+	CreatedAt   time.Time `json:"created_at"`
 }

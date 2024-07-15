@@ -11,7 +11,7 @@ import (
 // fields match the yaml configuration file
 type Config struct {
 	Env         string `yaml:"env" env-required:"true"`
-	StoragePath string `yaml:"storage_path" env-required:"true"`
+	StoragePath string `yaml:"storage_path" env-required:"true" env:"STORAGE_PATH"`
 	HTTPServer  `yaml:"http_server"`
 }
 

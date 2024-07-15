@@ -14,56 +14,52 @@ import (
 
 type Response struct {
 	resp.Response
-	Id int64 `json:"id"`
+	Id int `json:"id"`
 }
 
-func responseOK(w http.ResponseWriter, r *http.Request, id int64) {
+func responseOK(w http.ResponseWriter, r *http.Request, id int) {
 	render.JSON(w, r, Response{
 		Response: resp.OK(),
 		Id:       id,
 	})
 }
 
-type ExerciseSaver interface {
-	SaveExercise(ex storage.Exercise) (int64, error)
+type RecordSaver interface {
+	SaveRecord(ex storage.Record) (int, error)
 }
 
-func New(log *slog.Logger, exSaver ExerciseSaver) http.HandlerFunc {
+func New(log *slog.Logger, recSaver RecordSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.exercise.save.New"
+		const op = "handlers.record.save.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
-		var req storage.Exercise
-		err := render.DecodeJSON(r.Body, &req)
+		var rec storage.Record
+		err := render.DecodeJSON(r.Body, &rec)
 		if err != nil {
 			log.Error("failed to decode request", slog.Any("error", err))
+			render.Status(r, 400)
 			render.JSON(w, r, resp.Error("failed to decode request"))
 			return
 		}
-		log.Info("request body decoded", slog.Any("request", req))
-		if err := validator.New().Struct(req); err != nil {
+		log.Info("request body decoded", slog.Any("request", rec))
+		if err := validator.New().Struct(rec); err != nil {
 			log.Info("failed to validate request", slog.Any("error", err))
 			var validateErr validator.ValidationErrors
 			errors.As(err, &validateErr)
+			render.Status(r, 400)
 			render.JSON(w, r, resp.ValidationError(validateErr))
 			return
 		}
-		if req.Timestamp == "" {
-			req.Timestamp = time.Now().Format("2006-01-02 15:04:05")
-		} else {
-			_, err := time.Parse("2006-01-02 15:04:05", req.Timestamp)
-			if err != nil {
-				log.Info("failed to parse timestamp", slog.Any("error", err))
-				render.JSON(w, r, resp.Error("timestamp must be in the format 2006-01-02 15:04:05"))
-				return
-			}
+		if rec.CreatedAt.IsZero() {
+			rec.CreatedAt = time.Now()
 		}
-		id, err := exSaver.SaveExercise(req)
+		id, err := recSaver.SaveRecord(rec)
 		if err != nil {
-			log.Error("failed to save exercise", slog.Any("error", err))
+			log.Error("failed to save record", slog.Any("error", err))
+			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
-		log.Info("saved exercise", slog.Int64("id", id))
+		log.Info("saved record", slog.Int("id", id))
 		responseOK(w, r, id)
 	}
 }

@@ -2,8 +2,6 @@ package delete
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	"GYMBRO/internal/storage"
-	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -12,34 +10,32 @@ import (
 	"strconv"
 )
 
-type ExerciseDeleter interface {
-	DeleteExercise(id int64) error
+type RecordDeleter interface {
+	DeleteRecord(id int) error
 }
 
-func New(log *slog.Logger, exDeleter ExerciseDeleter) http.HandlerFunc {
+func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.exercise.delete.New"
+		const op = "handlers.record.delete.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		id := chi.URLParam(r, "id")
 		if id == "" {
-			log.Info("empty id in request url")
+			log.Info("empty id in request url") // TODO: not working
+			render.Status(r, 400)
 			render.JSON(w, r, resp.Error("empty id in request url"))
 			return
 		}
-		idnum, err := strconv.ParseInt(id, 10, 64)
+		idnum, err := strconv.Atoi(id)
 		if err != nil {
 			log.Info("nan id in request url")
+			render.Status(r, 400)
 			render.JSON(w, r, resp.Error("nan id in request url"))
 			return
 		}
-		err = exDeleter.DeleteExercise(idnum)
-		if errors.Is(err, storage.ErrExerciseNotFound) {
-			log.Info("no such exercise")
-			render.JSON(w, r, resp.Error("no such exercise"))
-			return
-		}
+		err = recDeleter.DeleteRecord(idnum)
 		if err != nil {
-			log.Info("exercise not found")
+			log.Info("record not found", slog.Any("error", err))
+			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}

@@ -2,12 +2,12 @@ package main
 
 import (
 	"GYMBRO/internal/config"
-	"GYMBRO/internal/http-server/handlers/exercise/delete"
-	"GYMBRO/internal/http-server/handlers/exercise/get"
-	"GYMBRO/internal/http-server/handlers/exercise/save"
+	"GYMBRO/internal/http-server/handlers/record/delete"
+	"GYMBRO/internal/http-server/handlers/record/get"
+	"GYMBRO/internal/http-server/handlers/record/save"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/prettylogger"
-	"GYMBRO/internal/storage/sqlite"
+	"GYMBRO/internal/storage/postgresql"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
@@ -22,7 +22,7 @@ func main() {
 	log.Info("Configuration loaded.")
 	log.Info("Logger loaded.")
 
-	db, err := sqlite.New(cfg.StoragePath)
+	db, err := postgresql.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("Error initializing storage.", slog.Any("error", err))
 		os.Exit(1)
@@ -37,9 +37,9 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/exercise", save.New(log, db))
-	router.Get("/exercise/{id}", get.New(log, db))
-	router.Delete("/exercise/{id}", delete.New(log, db))
+	router.Post("/record", save.New(log, db))
+	router.Get("/record/{id}", get.New(log, db))
+	router.Delete("/record/{id}", delete.New(log, db))
 
 	log.Info("starting server", slog.String("address", cfg.Address))
 
