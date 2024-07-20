@@ -8,7 +8,9 @@ import (
 // Common errors for storages
 
 var (
-	ErrRecordNotFound = errors.New("record not found")
+	ErrRecordNotFound = errors.New("records not found")
+	ErrUserNotFound   = errors.New("user not found")
+	ErrUserExists     = errors.New("users already exists")
 )
 
 // Common structures
@@ -29,9 +31,9 @@ type Exercise struct {
 
 type User struct {
 	UserId      int       `json:"user_id"`
-	Username    string    `json:"username"`
-	Email       string    `json:"email"`
-	Password    string    `json:"password"`
-	DateOfBirth time.Time `json:"date_of_birth"`
+	Username    string    `json:"username" validate:"required"`
+	Email       string    `json:"email" validate:"required,email"`
+	Password    string    `json:"password" validate:"required"`
+	DateOfBirth time.Time `json:"date_of_birth" validate:"required"`
 	CreatedAt   time.Time `json:"created_at"`
 }

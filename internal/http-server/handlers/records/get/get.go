@@ -18,7 +18,7 @@ type RecordGetter interface {
 
 type Response struct {
 	resp.Response
-	Record storage.Record `json:"record"`
+	Record storage.Record `json:"records"`
 }
 
 func responseOK(w http.ResponseWriter, r *http.Request, record storage.Record) {
@@ -29,7 +29,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, record storage.Record) {
 }
 func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.record.get.New"
+		const op = "handlers.records.get.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -47,13 +47,13 @@ func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
 		}
 		resRec, err := recGetter.GetRecord(idnum)
 		if errors.Is(err, storage.ErrRecordNotFound) {
-			log.Info("no such record", slog.Int("id", idnum))
+			log.Info("no such records", slog.Int("id", idnum))
 			render.Status(r, 404)
-			render.JSON(w, r, resp.Error("no such record"))
+			render.JSON(w, r, resp.Error("no such records"))
 			return
 		}
 		if err != nil {
-			log.Info("record not found", slog.Int("id", idnum))
+			log.Info("records not found", slog.Int("id", idnum))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

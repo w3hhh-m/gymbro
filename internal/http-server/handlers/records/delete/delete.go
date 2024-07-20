@@ -16,7 +16,7 @@ type RecordDeleter interface {
 
 func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.record.delete.New"
+		const op = "handlers.records.delete.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		id := chi.URLParam(r, "id")
 		if id == "" {
@@ -34,7 +34,7 @@ func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
 		}
 		err = recDeleter.DeleteRecord(idnum)
 		if err != nil {
-			log.Info("record not found", slog.Any("error", err))
+			log.Info("records not found", slog.Any("error", err))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

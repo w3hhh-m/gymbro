@@ -10,6 +10,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, P
 4) **chi** - router
 5) **chi/render** - manage HTTP request / response
 6) **validator** - validator :0
+7) **bcrypt** - hashing passwords
 
 ## Note
 Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*
@@ -33,7 +34,7 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
     │
     ├───http-server
     │   ├───handlers == Server handlers :0
-    │   │   ├───record == Handlers for records
+    │   │   ├───records == Handlers for records
     │   │   │   ├───delete
     │   │   │   │       delete.go
     │   │   │   │
@@ -43,8 +44,12 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
     │   │   │   └───save
     │   │   │           save.go
     │   │   │
-    │   │   └───response == Common response things for all handlers
-    │   │           response.go
+    │   │   ├───response == Common response things for all handlers
+    │   │   │       response.go
+    │   │   │
+    │   │   └───users Handlers for users
+    │   │       └───register
+    │   │               register.go
     │   │
     │   └───middleware == Custom middlewares
     │       └───logger == Logger for router (got request, took 1ms, etc.)

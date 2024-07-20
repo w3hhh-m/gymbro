@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,7 +39,7 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: dbpool}, nil
 }
 
-// SaveRecord is a method of Storage struct, that is saving given data of record to a database
+// SaveRecord is a method of Storage struct, that is saving given data of records to a database
 func (s *Storage) SaveRecord(rec storage.Record) (int, error) {
 	const op = "storage.postgresql.SaveRecord"
 	var id int
@@ -49,7 +50,7 @@ func (s *Storage) SaveRecord(rec storage.Record) (int, error) {
 	return id, nil
 }
 
-// GetRecord is a method of Storage struct that is getting data of one exact record by given id
+// GetRecord is a method of Storage struct that is getting data of one exact records by given id
 func (s *Storage) GetRecord(id int) (storage.Record, error) {
 	const op = "storage.postgresql.GetRecord"
 	var rec storage.Record
@@ -64,7 +65,7 @@ func (s *Storage) GetRecord(id int) (storage.Record, error) {
 	return rec, nil
 }
 
-// DeleteRecord is a method of Storage struct that is deleting exact one record from database by its id
+// DeleteRecord is a method of Storage struct that is deleting exact one records from database by its id
 func (s *Storage) DeleteRecord(id int) error {
 	const op = "storage.postgresql.DeleteRecord"
 	_, err := s.db.Exec(context.Background(), `DELETE FROM records WHERE record_id = $1`, id)
@@ -72,4 +73,18 @@ func (s *Storage) DeleteRecord(id int) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
+}
+
+func (s *Storage) RegisterNewUser(usr storage.User) (int, error) {
+	const op = "storage.postgresql.RegisterNewUser"
+	var id int
+	err := s.db.QueryRow(context.Background(), `INSERT INTO users (username, email, password, date_of_birth, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING user_id`, usr.Username, usr.Email, usr.Password, usr.DateOfBirth, usr.CreatedAt).Scan(&id)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return 0, storage.ErrUserExists
+		}
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return id, nil
 }

@@ -30,7 +30,7 @@ type RecordSaver interface {
 
 func New(log *slog.Logger, recSaver RecordSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.record.save.New"
+		const op = "handlers.records.save.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		var rec storage.Record
 		err := render.DecodeJSON(r.Body, &rec)
@@ -54,12 +54,12 @@ func New(log *slog.Logger, recSaver RecordSaver) http.HandlerFunc {
 		}
 		id, err := recSaver.SaveRecord(rec)
 		if err != nil {
-			log.Error("failed to save record", slog.Any("error", err))
+			log.Error("failed to save records", slog.Any("error", err))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
-		log.Info("saved record", slog.Int("id", id))
+		log.Info("saved records", slog.Int("id", id))
 		responseOK(w, r, id)
 	}
 }

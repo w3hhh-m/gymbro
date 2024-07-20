@@ -2,9 +2,10 @@ package main
 
 import (
 	"GYMBRO/internal/config"
-	"GYMBRO/internal/http-server/handlers/record/delete"
-	"GYMBRO/internal/http-server/handlers/record/get"
-	"GYMBRO/internal/http-server/handlers/record/save"
+	"GYMBRO/internal/http-server/handlers/records/delete"
+	"GYMBRO/internal/http-server/handlers/records/get"
+	"GYMBRO/internal/http-server/handlers/records/save"
+	"GYMBRO/internal/http-server/handlers/users/register"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/prettylogger"
 	"GYMBRO/internal/storage/postgresql"
@@ -19,16 +20,16 @@ func main() {
 	cfg := config.MustLoad()
 
 	log := setupLogger(cfg.Env)
-	log.Info("Configuration loaded.")
-	log.Info("Logger loaded.")
+	log.Info("Configuration loaded")
+	log.Info("Logger loaded")
 
 	db, err := postgresql.New(cfg.StoragePath)
 	if err != nil {
-		log.Error("Error initializing storage.", slog.Any("error", err))
+		log.Error("Error initializing storage", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-	log.Info("Storage loaded.")
+	log.Info("Storage loaded")
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -37,11 +38,12 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat) //to extract {var} from url
 
-	router.Post("/record", save.New(log, db))
-	router.Get("/record/{id}", get.New(log, db))
-	router.Delete("/record/{id}", delete.New(log, db))
+	router.Post("/records", save.New(log, db))
+	router.Get("/records/{id}", get.New(log, db))
+	router.Delete("/records/{id}", delete.New(log, db))
+	router.Post("/users", register.New(log, db))
 
-	log.Info("starting server", slog.String("address", cfg.Address))
+	log.Info("Starting server", slog.String("address", cfg.Address))
 
 	srv := http.Server{
 		Addr:         cfg.Address,
