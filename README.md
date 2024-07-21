@@ -1,5 +1,5 @@
 # GYMBRO
-GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, ...
+GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, JWT Auth, ...
 
 *... got inspiration from Nikolay Tuzov (just learning...)*
 
@@ -11,6 +11,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, P
 5) **chi/render** - manage HTTP request / response
 6) **validator** - validator :0
 7) **bcrypt** - hashing passwords
+8) **jwt** - JWT :0
 
 ## Note
 Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*
@@ -18,6 +19,7 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 ## Environment variables
 1) **CONFIG_PATH** - path to config.yaml file. for local env in this project - ./config/local.yaml
 2) **STORAGE_PATH** - path to postgresql database. example: postgres://username:password@host:port/dbname
+3) **SECRET_KEY** - secret for jwt tokens
 
 ## Structure
 ```
@@ -47,13 +49,19 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
     │   │   ├───response == Common response things for all handlers
     │   │   │       response.go
     │   │   │
-    │   │   └───users Handlers for users
+    │   │   └───users == Handlers for users
+    │   │       ├───login
+    │   │       │       login.go
+    │   │       │
     │   │       └───register
     │   │               register.go
     │   │
     │   └───middleware == Custom middlewares
     │       └───logger == Logger for router (got request, took 1ms, etc.)
     │               logger.go
+    │
+    ├───jwt
+    │       jwt.go
     │
     ├───prettylogger == Pretty logs for local env
     │       prettylogger.go

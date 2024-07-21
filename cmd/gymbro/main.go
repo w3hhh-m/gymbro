@@ -5,6 +5,7 @@ import (
 	"GYMBRO/internal/http-server/handlers/records/delete"
 	"GYMBRO/internal/http-server/handlers/records/get"
 	"GYMBRO/internal/http-server/handlers/records/save"
+	"GYMBRO/internal/http-server/handlers/users/login"
 	"GYMBRO/internal/http-server/handlers/users/register"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/prettylogger"
@@ -42,6 +43,7 @@ func main() {
 	router.Get("/records/{id}", get.New(log, db))
 	router.Delete("/records/{id}", delete.New(log, db))
 	router.Post("/users", register.New(log, db))
+	router.Get("/users", login.New(log, db, cfg.SecretKey))
 
 	log.Info("Starting server", slog.String("address", cfg.Address))
 

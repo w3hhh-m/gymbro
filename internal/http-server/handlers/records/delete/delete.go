@@ -34,7 +34,7 @@ func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
 		}
 		err = recDeleter.DeleteRecord(idnum)
 		if err != nil {
-			log.Info("records not found", slog.Any("error", err))
+			log.Error("records not found", slog.Any("error", err))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

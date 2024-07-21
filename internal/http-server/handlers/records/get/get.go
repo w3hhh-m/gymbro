@@ -53,7 +53,7 @@ func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
 			return
 		}
 		if err != nil {
-			log.Info("records not found", slog.Int("id", idnum))
+			log.Error("records not found", slog.Int("id", idnum))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

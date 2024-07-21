@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -87,4 +88,18 @@ func (s *Storage) RegisterNewUser(usr storage.User) (int, error) {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 	return id, nil
+}
+
+func (s *Storage) GetUser(email string) (storage.User, error) {
+	const op = "storage.postgresql.GetUser"
+	var user storage.User
+	row := s.db.QueryRow(context.Background(), `SELECT * FROM users WHERE email = $1`, email)
+	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.DateOfBirth, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user, storage.ErrUserNotFound
+		}
+		return user, fmt.Errorf("%s: %w", op, err)
+	}
+	return user, nil
 }
