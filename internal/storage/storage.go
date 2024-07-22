@@ -33,6 +33,7 @@ type User struct {
 	UserId      int       `json:"user_id"`
 	Username    string    `json:"username" validate:"required"`
 	Email       string    `json:"email" validate:"required,email"`
+	Phone       string    `json:"phone" validate:"required,numeric,len=11"`
 	Password    string    `json:"password" validate:"required"`
 	DateOfBirth time.Time `json:"date_of_birth" validate:"required"`
 	CreatedAt   time.Time `json:"created_at"`

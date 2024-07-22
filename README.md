@@ -12,6 +12,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, P
 6) **validator** - validator :0
 7) **bcrypt** - hashing passwords
 8) **jwt** - JWT :0
+9) **golang-migrate/migrate** - migrations :0
 
 ## Note
 Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*
@@ -21,11 +22,23 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 2) **STORAGE_PATH** - path to postgresql database. example: postgres://username:password@host:port/dbname
 3) **SECRET_KEY** - secret for jwt tokens
 
+## Migrations
+Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[up|down]`
+
 ## Structure
 ```
 ├───cmd == Folder where the main commands are located (such as running app)
-│   └───gymbro
-│           main.go == Main project file
+│   ├───gymbro
+│   │       main.go == Main project file
+│   │
+│   └───migrate == Database migrations
+│       │   main.go
+│       │
+│       └───migrations
+│               1_init.down.sql
+│               1_init.up.sql
+│               2_fill.down.sql
+│               2_fill.up.sql
 │
 ├───config == Folder where config files are located
 │       local.yaml
@@ -60,11 +73,12 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
     │       └───logger == Logger for router (got request, took 1ms, etc.)
     │               logger.go
     │
-    ├───jwt
-    │       jwt.go
-    │
-    ├───prettylogger == Pretty logs for local env
-    │       prettylogger.go
+    ├───lib
+    │   ├───jwt
+    │   │       jwt.go
+    │   │
+    │   └───prettylogger == Pretty logs for local env
+    │           prettylogger.go
     │
     └───storage
         │   storage.go == Common things for all possible storages (not only postgres)

@@ -24,18 +24,6 @@ func New(storagePath string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	_, err = dbpool.Exec(context.Background(), `CREATE TABLE IF NOT EXISTS users (user_id serial PRIMARY KEY, username varchar(255) NOT NULL UNIQUE, email varchar(255) NOT NULL UNIQUE, password varchar(255) NOT NULL, date_of_birth date NOT NULL, created_at timestamp NOT NULL)`)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-	_, err = dbpool.Exec(context.Background(), `CREATE TABLE IF NOT EXISTS exercises (exercise_id serial PRIMARY KEY, name varchar(255) NOT NULL UNIQUE)`)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-	_, err = dbpool.Exec(context.Background(), `CREATE TABLE IF NOT EXISTS records (record_id serial PRIMARY KEY, fk_user_id integer REFERENCES users(user_id) NOT NULL, fk_exercise_id integer REFERENCES exercises(exercise_id) NOT NULL, reps integer NOT NULL, weight integer NOT NULL, created_at timestamp NOT NULL)`)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
 	return &Storage{db: dbpool}, nil
 }
 
@@ -78,7 +66,7 @@ func (s *Storage) DeleteRecord(id int) error {
 func (s *Storage) RegisterNewUser(usr storage.User) (int, error) {
 	const op = "storage.postgresql.RegisterNewUser"
 	var id int
-	err := s.db.QueryRow(context.Background(), `INSERT INTO users (username, email, password, date_of_birth, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING user_id`, usr.Username, usr.Email, usr.Password, usr.DateOfBirth, usr.CreatedAt).Scan(&id)
+	err := s.db.QueryRow(context.Background(), `INSERT INTO users (username, email, password, phone, date_of_birth, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id`, usr.Username, usr.Email, usr.Phone, usr.Password, usr.DateOfBirth, usr.CreatedAt).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -93,7 +81,7 @@ func (s *Storage) GetUserByID(id int) (storage.User, error) {
 	const op = "storage.postgresql.GetUserByID"
 	var user storage.User
 	row := s.db.QueryRow(context.Background(), `SELECT * FROM users WHERE user_id = $1`, id)
-	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.DateOfBirth, &user.CreatedAt)
+	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Phone, &user.Password, &user.DateOfBirth, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return user, storage.ErrUserNotFound
@@ -107,7 +95,7 @@ func (s *Storage) GetUserByEmail(email string) (storage.User, error) {
 	const op = "storage.postgresql.GetUserByEmail"
 	var user storage.User
 	row := s.db.QueryRow(context.Background(), `SELECT * FROM users WHERE email = $1`, email)
-	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.DateOfBirth, &user.CreatedAt)
+	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Phone, &user.Password, &user.DateOfBirth, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return user, storage.ErrUserNotFound

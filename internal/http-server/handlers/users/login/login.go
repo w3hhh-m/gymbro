@@ -2,7 +2,7 @@ package login
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	"GYMBRO/internal/jwt"
+	"GYMBRO/internal/lib/jwt"
 	"GYMBRO/internal/storage"
 	"errors"
 	"github.com/go-chi/chi/v5/middleware"
@@ -52,7 +52,7 @@ func New(log *slog.Logger, userProvider storage.UserProvider, secret string) htt
 			render.JSON(w, r, resp.ValidationError(validateErr))
 			return
 		}
-		usr, err := userProvider.GetUserByEmail(req.Email) //TODO:
+		usr, err := userProvider.GetUserByEmail(req.Email)
 		if err != nil {
 			if errors.Is(err, storage.ErrUserNotFound) {
 				log.Info("user not found", slog.Any("email", req.Email))

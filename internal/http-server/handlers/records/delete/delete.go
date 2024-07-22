@@ -2,7 +2,7 @@ package delete
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	"GYMBRO/internal/jwt"
+	"GYMBRO/internal/lib/jwt"
 	"GYMBRO/internal/storage"
 	"errors"
 	"github.com/go-chi/chi/v5"

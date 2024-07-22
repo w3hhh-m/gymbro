@@ -8,8 +8,8 @@ import (
 	"GYMBRO/internal/http-server/handlers/users/login"
 	"GYMBRO/internal/http-server/handlers/users/register"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
-	"GYMBRO/internal/jwt"
-	"GYMBRO/internal/prettylogger"
+	"GYMBRO/internal/lib/jwt"
+	"GYMBRO/internal/lib/prettylogger"
 	"GYMBRO/internal/storage/postgresql"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -40,7 +40,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat) //to extract {var} from url
 
-	// TODO: make protected with JWT auth
+	// Protected routes
 	router.Post("/records", jwt.WithJWTAuth(save.New(log, db), db, cfg.SecretKey))
 	router.Get("/records/{id}", jwt.WithJWTAuth(get.New(log, db), db, cfg.SecretKey))
 	router.Delete("/records/{id}", jwt.WithJWTAuth(delete.New(log, db), db, cfg.SecretKey))
