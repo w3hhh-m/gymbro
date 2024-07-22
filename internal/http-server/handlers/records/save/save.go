@@ -2,6 +2,7 @@ package save
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/jwt"
 	"GYMBRO/internal/storage"
 	"errors"
 	"github.com/go-chi/chi/v5/middleware"
@@ -24,11 +25,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, id int) {
 	})
 }
 
-type RecordSaver interface {
-	SaveRecord(ex storage.Record) (int, error)
-}
-
-func New(log *slog.Logger, recSaver RecordSaver) http.HandlerFunc {
+func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.save.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -52,7 +49,8 @@ func New(log *slog.Logger, recSaver RecordSaver) http.HandlerFunc {
 		if rec.CreatedAt.IsZero() {
 			rec.CreatedAt = time.Now()
 		}
-		id, err := recSaver.SaveRecord(rec)
+		rec.FkUserId = jwt.GetUserIDFromContext(r.Context())
+		id, err := recordProvider.SaveRecord(rec)
 		if err != nil {
 			log.Error("failed to save records", slog.Any("error", err))
 			render.Status(r, 500)

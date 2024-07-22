@@ -3,7 +3,6 @@ package postgresql
 import (
 	"GYMBRO/internal/storage"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
@@ -57,7 +56,7 @@ func (s *Storage) GetRecord(id int) (storage.Record, error) {
 	var rec storage.Record
 	row := s.db.QueryRow(context.Background(), `SELECT * FROM records WHERE record_id = $1`, id)
 	err := row.Scan(&rec.RecordId, &rec.FkUserId, &rec.FkExerciseId, &rec.Reps, &rec.Weight, &rec.CreatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return rec, storage.ErrRecordNotFound
 	}
 	if err != nil {
@@ -90,8 +89,22 @@ func (s *Storage) RegisterNewUser(usr storage.User) (int, error) {
 	return id, nil
 }
 
-func (s *Storage) GetUser(email string) (storage.User, error) {
-	const op = "storage.postgresql.GetUser"
+func (s *Storage) GetUserByID(id int) (storage.User, error) {
+	const op = "storage.postgresql.GetUserByID"
+	var user storage.User
+	row := s.db.QueryRow(context.Background(), `SELECT * FROM users WHERE user_id = $1`, id)
+	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.DateOfBirth, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user, storage.ErrUserNotFound
+		}
+		return user, fmt.Errorf("%s: %w", op, err)
+	}
+	return user, nil
+}
+
+func (s *Storage) GetUserByEmail(email string) (storage.User, error) {
+	const op = "storage.postgresql.GetUserByEmail"
 	var user storage.User
 	row := s.db.QueryRow(context.Background(), `SELECT * FROM users WHERE email = $1`, email)
 	err := row.Scan(&user.UserId, &user.Username, &user.Email, &user.Password, &user.DateOfBirth, &user.CreatedAt)

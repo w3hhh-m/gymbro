@@ -2,6 +2,9 @@ package delete
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/jwt"
+	"GYMBRO/internal/storage"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -10,11 +13,7 @@ import (
 	"strconv"
 )
 
-type RecordDeleter interface {
-	DeleteRecord(id int) error
-}
-
-func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
+func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.delete.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -32,7 +31,21 @@ func New(log *slog.Logger, recDeleter RecordDeleter) http.HandlerFunc {
 			render.JSON(w, r, resp.Error("nan id in request url"))
 			return
 		}
-		err = recDeleter.DeleteRecord(idnum)
+		resRec, err := recordProvider.GetRecord(idnum)
+		if errors.Is(err, storage.ErrRecordNotFound) {
+			log.Info("no such records", slog.Int("id", idnum))
+			render.Status(r, 404)
+			render.JSON(w, r, resp.Error("no such records"))
+			return
+		}
+		uid := jwt.GetUserIDFromContext(r.Context())
+		if resRec.FkUserId != uid {
+			log.Info("attempting to get other user record", slog.String("id", id))
+			render.Status(r, 401)
+			render.JSON(w, r, resp.Error("you are not the owner of this record"))
+			return
+		}
+		err = recordProvider.DeleteRecord(idnum)
 		if err != nil {
 			log.Error("records not found", slog.Any("error", err))
 			render.Status(r, 500)

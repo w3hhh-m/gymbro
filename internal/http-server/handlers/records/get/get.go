@@ -2,6 +2,7 @@ package get
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/jwt"
 	"GYMBRO/internal/storage"
 	"errors"
 	"github.com/go-chi/chi/v5"
@@ -11,10 +12,6 @@ import (
 	"net/http"
 	"strconv"
 )
-
-type RecordGetter interface {
-	GetRecord(id int) (storage.Record, error)
-}
 
 type Response struct {
 	resp.Response
@@ -27,7 +24,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, record storage.Record) {
 		Record:   record,
 	})
 }
-func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
+func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.get.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -45,7 +42,8 @@ func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
 			render.JSON(w, r, resp.Error("nan id in request url"))
 			return
 		}
-		resRec, err := recGetter.GetRecord(idnum)
+		uid := jwt.GetUserIDFromContext(r.Context())
+		resRec, err := recordProvider.GetRecord(idnum)
 		if errors.Is(err, storage.ErrRecordNotFound) {
 			log.Info("no such records", slog.Int("id", idnum))
 			render.Status(r, 404)
@@ -56,6 +54,12 @@ func New(log *slog.Logger, recGetter RecordGetter) http.HandlerFunc {
 			log.Error("records not found", slog.Int("id", idnum))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
+			return
+		}
+		if resRec.FkUserId != uid {
+			log.Info("attempting to get other user record", slog.String("id", id))
+			render.Status(r, 401)
+			render.JSON(w, r, resp.Error("you are not the owner of this record"))
 			return
 		}
 		responseOK(w, r, resRec)

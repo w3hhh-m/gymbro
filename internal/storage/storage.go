@@ -17,7 +17,7 @@ var (
 
 type Record struct {
 	RecordId     int       `json:"record_id"`
-	FkUserId     int       `json:"fk_user_id" validate:"required"`
+	FkUserId     int       `json:"fk_user_id"`
 	FkExerciseId int       `json:"fk_exercise_id" validate:"required"`
 	Reps         int       `json:"reps" validate:"required"`
 	Weight       int       `json:"weight" validate:"required"`
@@ -36,4 +36,18 @@ type User struct {
 	Password    string    `json:"password" validate:"required"`
 	DateOfBirth time.Time `json:"date_of_birth" validate:"required"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// Interfaces
+
+type RecordProvider interface {
+	GetRecord(id int) (Record, error)
+	DeleteRecord(id int) error
+	SaveRecord(ex Record) (int, error)
+}
+
+type UserProvider interface {
+	GetUserByID(id int) (User, error)
+	GetUserByEmail(email string) (User, error)
+	RegisterNewUser(usr User) (int, error)
 }

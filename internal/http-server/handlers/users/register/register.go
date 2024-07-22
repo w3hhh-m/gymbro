@@ -25,11 +25,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, id int) {
 	})
 }
 
-type UserRegisterer interface {
-	RegisterNewUser(usr storage.User) (int, error)
-}
-
-func New(log *slog.Logger, usrRegisterer UserRegisterer) http.HandlerFunc {
+func New(log *slog.Logger, userProvider storage.UserProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.register.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -64,7 +60,7 @@ func New(log *slog.Logger, usrRegisterer UserRegisterer) http.HandlerFunc {
 
 		usr.Password = string(passHash)
 
-		id, err := usrRegisterer.RegisterNewUser(usr)
+		id, err := userProvider.RegisterNewUser(usr)
 		if err != nil {
 			if errors.Is(err, storage.ErrUserExists) {
 				render.Status(r, 400)

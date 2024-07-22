@@ -31,11 +31,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, token string) {
 	})
 }
 
-type UserProvider interface {
-	GetUser(email string) (storage.User, error)
-}
-
-func New(log *slog.Logger, usrProvider UserProvider, secret string) http.HandlerFunc {
+func New(log *slog.Logger, userProvider storage.UserProvider, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.login.New"
 		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -56,7 +52,7 @@ func New(log *slog.Logger, usrProvider UserProvider, secret string) http.Handler
 			render.JSON(w, r, resp.ValidationError(validateErr))
 			return
 		}
-		usr, err := usrProvider.GetUser(req.Email)
+		usr, err := userProvider.GetUserByEmail(req.Email) //TODO:
 		if err != nil {
 			if errors.Is(err, storage.ErrUserNotFound) {
 				log.Info("user not found", slog.Any("email", req.Email))
@@ -82,6 +78,15 @@ func New(log *slog.Logger, usrProvider UserProvider, secret string) http.Handler
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
+		http.SetCookie(w, &http.Cookie{
+			HttpOnly: true,
+			Expires:  time.Now().Add(24 * time.Hour),
+			SameSite: http.SameSiteLaxMode,
+			// Uncomment below for HTTPS:
+			// Secure: true,
+			Name:  "jwt", // Must be named "jwt" or else the token cannot be searched for by jwtauth.Verifier.
+			Value: token,
+		})
 		responseOK(w, r, token)
 	}
 }
