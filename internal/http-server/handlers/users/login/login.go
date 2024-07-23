@@ -34,7 +34,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, token string) {
 func New(log *slog.Logger, userProvider storage.UserProvider, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.login.New"
-		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		var req Request
 		err := render.DecodeJSON(r.Body, &req)
 		if err != nil {
@@ -71,7 +71,7 @@ func New(log *slog.Logger, userProvider storage.UserProvider, secret string) htt
 			render.JSON(w, r, resp.Error("invalid credentials"))
 			return
 		}
-		token, err := jwt.NewToken(usr, time.Duration(24*time.Hour), secret)
+		token, err := jwt.NewToken(usr, 24*time.Hour, secret)
 		if err != nil {
 			log.Error("failed to generate token", slog.Any("error", err))
 			render.Status(r, 500)
@@ -80,8 +80,8 @@ func New(log *slog.Logger, userProvider storage.UserProvider, secret string) htt
 		}
 		http.SetCookie(w, &http.Cookie{
 			HttpOnly: true,
+			Path:     "/",
 			Expires:  time.Now().Add(24 * time.Hour),
-			SameSite: http.SameSiteLaxMode,
 			// Uncomment below for HTTPS:
 			// Secure: true,
 			Name:  "jwt",

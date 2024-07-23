@@ -49,25 +49,29 @@ func NewCB(log *slog.Logger) http.HandlerFunc {
 	})
 }
 
-func Logout(w http.ResponseWriter, r *http.Request) {
-	provider := chi.URLParam(r, "provider")
-	r = r.WithContext(context.WithValue(r.Context(), "provider", provider))
-	err := gothic.Logout(w, r)
-	if err != nil {
-		return
-	}
-	w.Header().Set("Location", "/")
-	w.WriteHeader(http.StatusTemporaryRedirect)
+func NewLogout() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		provider := chi.URLParam(r, "provider")
+		r = r.WithContext(context.WithValue(r.Context(), "provider", provider))
+		err := gothic.Logout(w, r)
+		if err != nil {
+			return
+		}
+		w.Header().Set("Location", "/")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	})
 }
 
-func Login(w http.ResponseWriter, r *http.Request) {
-	// try to get the user without re-authenticating
-	provider := chi.URLParam(r, "provider")
-	r = r.WithContext(context.WithValue(r.Context(), "provider", provider))
-	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-		_ = gothUser
-		// TODO: remember values
-	} else {
-		gothic.BeginAuthHandler(w, r)
-	}
+func NewLogin() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// try to get the user without re-authenticating
+		provider := chi.URLParam(r, "provider")
+		r = r.WithContext(context.WithValue(r.Context(), "provider", provider))
+		if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
+			_ = gothUser
+			// TODO: remember values
+		} else {
+			gothic.BeginAuthHandler(w, r)
+		}
+	})
 }

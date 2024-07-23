@@ -66,7 +66,7 @@ func (s *Storage) DeleteRecord(id int) error {
 func (s *Storage) RegisterNewUser(usr storage.User) (int, error) {
 	const op = "storage.postgresql.RegisterNewUser"
 	var id int
-	err := s.db.QueryRow(context.Background(), `INSERT INTO users (username, email, password, phone, date_of_birth, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id`, usr.Username, usr.Email, usr.Phone, usr.Password, usr.DateOfBirth, usr.CreatedAt).Scan(&id)
+	err := s.db.QueryRow(context.Background(), `INSERT INTO users (username, email, phone, password, date_of_birth, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id`, usr.Username, usr.Email, usr.Phone, usr.Password, usr.DateOfBirth, usr.CreatedAt).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {

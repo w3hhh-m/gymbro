@@ -27,7 +27,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, record storage.Record) {
 func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.get.New"
-		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		id := chi.URLParam(r, "id")
 		if id == "" {
 			log.Info("empty id in request url") // TODO: not working
@@ -51,7 +51,7 @@ func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFu
 			return
 		}
 		if err != nil {
-			log.Error("records not found", slog.Int("id", idnum))
+			log.Error("record was not retrieved", slog.Int("id", idnum), slog.Any("error", err))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

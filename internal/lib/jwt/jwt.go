@@ -5,8 +5,10 @@ import (
 	"GYMBRO/internal/storage"
 	"context"
 	"fmt"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v5"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -28,16 +30,20 @@ func NewToken(usr storage.User, duration time.Duration, secret string) (string, 
 	return tokenString, nil
 }
 
-func WithJWTAuth(handlerFunc http.HandlerFunc, userProvider storage.UserProvider, secret string) http.HandlerFunc {
+func WithJWTAuth(handlerFunc http.HandlerFunc, log *slog.Logger, userProvider storage.UserProvider, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tokenString := getTokenFromRequest(r)
+		const op = "lib.jwt.WithJWTAuth"
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		tokenString := GetTokenFromRequest(r)
 		token, err := validateJWT(tokenString, secret)
 		if err != nil {
+			log.Error("Failed to validate JWT", "error", err)
 			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("failed to validate token"))
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
 		if !token.Valid {
+			log.Info("Got invalid token")
 			render.Status(r, 401)
 			render.JSON(w, r, resp.Error("invalid token"))
 			return
@@ -45,14 +51,16 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, userProvider storage.UserProvider
 		claims := token.Claims.(jwt.MapClaims)
 		userID := int(claims["uid"].(float64))
 		if err != nil {
+			log.Error("Failed to get user ID", "error", err)
 			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("failed to retrieve uid"))
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
 		u, err := userProvider.GetUserByID(userID)
 		if err != nil {
+			log.Error("Failed to get user", "error", err)
 			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("failed to get user"))
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
 		ctx := r.Context()
@@ -62,7 +70,7 @@ func WithJWTAuth(handlerFunc http.HandlerFunc, userProvider storage.UserProvider
 	}
 }
 
-func getTokenFromRequest(r *http.Request) string {
+func GetTokenFromRequest(r *http.Request) string {
 	tokenAuth := r.Header.Get("Authorization")
 	tokenQuery := r.URL.Query().Get("token")
 	tokenCookie, err := r.Cookie("jwt")

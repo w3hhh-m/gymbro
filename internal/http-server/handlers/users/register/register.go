@@ -28,7 +28,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, id int) {
 func New(log *slog.Logger, userProvider storage.UserProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.register.New"
-		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		var usr storage.User
 		err := render.DecodeJSON(r.Body, &usr)
 		if err != nil {

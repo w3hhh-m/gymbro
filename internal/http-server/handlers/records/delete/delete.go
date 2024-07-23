@@ -16,7 +16,7 @@ import (
 func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.delete.New"
-		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		id := chi.URLParam(r, "id")
 		if id == "" {
 			log.Info("empty id in request url") // TODO: not working
@@ -26,7 +26,7 @@ func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFu
 		}
 		idnum, err := strconv.Atoi(id)
 		if err != nil {
-			log.Info("nan id in request url")
+			log.Info("nan id in request url", slog.String("id", id))
 			render.Status(r, 400)
 			render.JSON(w, r, resp.Error("nan id in request url"))
 			return
@@ -47,7 +47,7 @@ func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFu
 		}
 		err = recordProvider.DeleteRecord(idnum)
 		if err != nil {
-			log.Error("records not found", slog.Any("error", err))
+			log.Error("record was not deleted", slog.Any("error", err))
 			render.Status(r, 500)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

@@ -47,19 +47,19 @@ func main() {
 	//  TODO: group and use WithJWTAuth as router.Use()
 
 	// Protected routes
-	router.Post("/records", jwt.WithJWTAuth(save.New(log, db), db, cfg.SecretKey))
-	router.Get("/records/{id}", jwt.WithJWTAuth(get.New(log, db), db, cfg.SecretKey))
-	router.Delete("/records/{id}", jwt.WithJWTAuth(delete.New(log, db), db, cfg.SecretKey))
-	router.Post("/users/logout", jwt.WithJWTAuth(logout.New(), db, cfg.SecretKey))
+	router.Post("/records", jwt.WithJWTAuth(save.New(log, db), log, db, cfg.SecretKey))
+	router.Get("/records/{id}", jwt.WithJWTAuth(get.New(log, db), log, db, cfg.SecretKey))
+	router.Delete("/records/{id}", jwt.WithJWTAuth(delete.New(log, db), log, db, cfg.SecretKey))
+	router.Get("/users/logout", jwt.WithJWTAuth(logout.New(log), log, db, cfg.SecretKey))
 
 	// Public routes
 	router.Post("/users/register", register.New(log, db))
-	router.Post("/users/login", login.New(log, db, cfg.SecretKey))
+	router.Get("/users/login", login.New(log, db, cfg.SecretKey))
 
 	// OAuth routes
 	router.Get("/users/oauth/{provider}/callback", oauth.NewCB(log))
-	router.Get("/users/oauth/logout/{provider}", oauth.Logout)
-	router.Get("/users/oauth/{provider}", oauth.Login)
+	router.Get("/users/oauth/logout/{provider}", oauth.NewLogout())
+	router.Get("/users/oauth/{provider}", oauth.NewLogin())
 
 	log.Info("Starting server", slog.String("address", cfg.Address))
 

@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS users
 (
     user_id serial PRIMARY KEY,
-    username varchar(255) NOT NULL UNIQUE,
-    email varchar(255) NOT NULL UNIQUE,
+    username text NOT NULL UNIQUE,
+    email text NOT NULL UNIQUE,
     phone char(11) NOT NULL UNIQUE,
     password text NOT NULL,
     date_of_birth date NOT NULL,

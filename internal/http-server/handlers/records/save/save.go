@@ -28,7 +28,7 @@ func responseOK(w http.ResponseWriter, r *http.Request, id int) {
 func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.save.New"
-		log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 		var rec storage.Record
 		err := render.DecodeJSON(r.Body, &rec)
 		if err != nil {
