@@ -84,7 +84,7 @@ func New(log *slog.Logger, userProvider storage.UserProvider, secret string) htt
 			SameSite: http.SameSiteLaxMode,
 			// Uncomment below for HTTPS:
 			// Secure: true,
-			Name:  "jwt", // Must be named "jwt" or else the token cannot be searched for by jwtauth.Verifier.
+			Name:  "jwt",
 			Value: token,
 		})
 		responseOK(w, r, token)

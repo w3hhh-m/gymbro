@@ -1,5 +1,5 @@
 # GYMBRO
-GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, JWT Auth, ...
+GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, JWT Auth, OAuth, Migrations, ...
 
 *... got inspiration from Nikolay Tuzov (just learning...)*
 
@@ -13,6 +13,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, P
 7) **bcrypt** - hashing passwords
 8) **jwt** - JWT :0
 9) **golang-migrate/migrate** - migrations :0
+10) **goth, gorilla/sessions** - OAuth
 
 ## Note
 Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*
@@ -21,6 +22,8 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 1) **CONFIG_PATH** - path to config.yaml file. for local env in this project - ./config/local.yaml
 2) **STORAGE_PATH** - path to postgresql database. example: postgres://username:password@host:port/dbname
 3) **SECRET_KEY** - secret for jwt tokens
+4) **GOOGLE_KEY** - client id from console.google.cloud.com for OAuth
+5) **GOOGLE_SECRET** - secret from console.google.cloud.com for OAuth
 
 ## Migrations
 Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[up|down]`
@@ -65,6 +68,12 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     │   │   └───users == Handlers for users
     │   │       ├───login
     │   │       │       login.go
+    │   │       │
+    │   │       ├───logout
+    │   │       │       logout.go
+    │   │       │
+    │   │       ├───oauth
+    │   │       │       oauth.go
     │   │       │
     │   │       └───register
     │   │               register.go

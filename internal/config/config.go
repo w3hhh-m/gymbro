@@ -10,10 +10,12 @@ import (
 // Config is a structure with fields responsible for configuration parameters. The
 // fields match the yaml configuration file
 type Config struct {
-	Env         string `yaml:"env" env-required:"true"`
-	StoragePath string `yaml:"storage_path" env-required:"true" env:"STORAGE_PATH"`
-	SecretKey   string `yaml:"secret_key" env-required:"true" env:"SECRET_KEY"`
-	HTTPServer  `yaml:"http_server"`
+	Env          string `yaml:"env" env-required:"true"`
+	StoragePath  string `yaml:"storage_path" env-required:"true" env:"STORAGE_PATH"`
+	SecretKey    string `yaml:"secret_key" env-required:"true" env:"SECRET_KEY"`
+	GoogleKey    string `yaml:"google_key" env-required:"true" env:"GOOGLE_KEY"`
+	GoogleSecret string `yaml:"google_secret" env-required:"true" env:"GOOGLE_SECRET"`
+	HTTPServer   `yaml:"http_server"`
 }
 
 // HTTPServer is a structure with fields representing parameters of server such as Address and timeouts

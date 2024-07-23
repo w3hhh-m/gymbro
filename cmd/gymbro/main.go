@@ -6,6 +6,8 @@ import (
 	"GYMBRO/internal/http-server/handlers/records/get"
 	"GYMBRO/internal/http-server/handlers/records/save"
 	"GYMBRO/internal/http-server/handlers/users/login"
+	"GYMBRO/internal/http-server/handlers/users/logout"
+	"GYMBRO/internal/http-server/handlers/users/oauth"
 	"GYMBRO/internal/http-server/handlers/users/register"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/lib/jwt"
@@ -40,14 +42,24 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat) //to extract {var} from url
 
+	oauth.NewOAuth(cfg)
+
+	//  TODO: group and use WithJWTAuth as router.Use()
+
 	// Protected routes
 	router.Post("/records", jwt.WithJWTAuth(save.New(log, db), db, cfg.SecretKey))
 	router.Get("/records/{id}", jwt.WithJWTAuth(get.New(log, db), db, cfg.SecretKey))
 	router.Delete("/records/{id}", jwt.WithJWTAuth(delete.New(log, db), db, cfg.SecretKey))
+	router.Post("/users/logout", jwt.WithJWTAuth(logout.New(), db, cfg.SecretKey))
 
 	// Public routes
-	router.Post("/register", register.New(log, db))
-	router.Post("/login", login.New(log, db, cfg.SecretKey))
+	router.Post("/users/register", register.New(log, db))
+	router.Post("/users/login", login.New(log, db, cfg.SecretKey))
+
+	// OAuth routes
+	router.Get("/users/oauth/{provider}/callback", oauth.NewCB(log))
+	router.Get("/users/oauth/logout/{provider}", oauth.Logout)
+	router.Get("/users/oauth/{provider}", oauth.Login)
 
 	log.Info("Starting server", slog.String("address", cfg.Address))
 
