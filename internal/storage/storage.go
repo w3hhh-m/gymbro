@@ -41,13 +41,13 @@ type User struct {
 
 // Interfaces
 
-type RecordProvider interface {
+type RecordRepository interface {
 	GetRecord(id int) (Record, error)
 	DeleteRecord(id int) error
 	SaveRecord(ex Record) (int, error)
 }
 
-type UserProvider interface {
+type UserRepository interface {
 	GetUserByID(id int) (User, error)
 	GetUserByEmail(email string) (User, error)
 	RegisterNewUser(usr User) (int, error)

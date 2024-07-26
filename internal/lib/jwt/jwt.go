@@ -29,7 +29,7 @@ func NewToken(usr storage.User, duration time.Duration, secret string) (string, 
 }
 
 // WithJWTAuth middleware checks for a valid JWT token and adds the user ID to the context
-func WithJWTAuth(log *slog.Logger, userProvider storage.UserProvider, secret string) func(http.Handler) http.Handler {
+func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const op = "lib.jwt.WithJWTAuth"
@@ -66,7 +66,7 @@ func WithJWTAuth(log *slog.Logger, userProvider storage.UserProvider, secret str
 				return
 			}
 
-			u, err := userProvider.GetUserByID(userID)
+			u, err := userRepo.GetUserByID(userID)
 			if err != nil {
 				log.Error("Failed to retrieve user", "error", err)
 				render.Status(r, http.StatusInternalServerError)

@@ -13,45 +13,58 @@ import (
 	"strconv"
 )
 
-func New(log *slog.Logger, recordProvider storage.RecordProvider) http.HandlerFunc {
+// NewDeleteHandler returns a handler function to delete a record
+func NewDeleteHandler(log *slog.Logger, recordRepo storage.RecordRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.records.delete.New"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+
+		// Extract the record ID from the URL parameters
 		id := chi.URLParam(r, "id")
 		if id == "" {
-			log.Info("empty id in request url") // TODO: not working
-			render.Status(r, 400)
-			render.JSON(w, r, resp.Error("empty id in request url"))
+			log.Info("Empty id in request URL")
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("Empty id in request URL"))
 			return
 		}
+
+		// Convert the ID to an integer
 		idnum, err := strconv.Atoi(id)
 		if err != nil {
-			log.Info("nan id in request url", slog.String("id", id))
-			render.Status(r, 400)
-			render.JSON(w, r, resp.Error("nan id in request url"))
+			log.Info("Non-numeric id in request URL", slog.String("id", id))
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("Non-numeric id in request URL"))
 			return
 		}
-		resRec, err := recordProvider.GetRecord(idnum)
+
+		// Retrieve the record from the database
+		resRec, err := recordRepo.GetRecord(idnum)
 		if errors.Is(err, storage.ErrRecordNotFound) {
-			log.Info("no such records", slog.Int("id", idnum))
-			render.Status(r, 404)
-			render.JSON(w, r, resp.Error("no such records"))
+			log.Info("No such records", slog.Int("id", idnum))
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, resp.Error("No such records"))
 			return
 		}
+
+		// Check if the user is the owner of the record
 		uid := jwt.GetUserIDFromContext(r.Context())
 		if resRec.FkUserId != uid {
-			log.Info("attempting to get other user record", slog.String("id", id))
-			render.Status(r, 401)
-			render.JSON(w, r, resp.Error("you are not the owner of this record"))
+			log.Info("Attempting to delete other user's record", slog.String("id", id))
+			render.Status(r, http.StatusUnauthorized)
+			render.JSON(w, r, resp.Error("You are not the owner of this record"))
 			return
 		}
-		err = recordProvider.DeleteRecord(idnum)
+
+		// Delete the record from the database
+		err = recordRepo.DeleteRecord(idnum)
 		if err != nil {
-			log.Error("record was not deleted", slog.Any("error", err))
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("internal error"))
+			log.Error("Record was not deleted", slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
+
+		// Send a successful response
 		render.JSON(w, r, resp.OK())
 	}
 }

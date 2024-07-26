@@ -8,11 +8,15 @@ import (
 	"net/http"
 )
 
-func New(log *slog.Logger) http.HandlerFunc {
+// NewLogoutHandler returns a handler function to initiate user logout
+func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.logout.New"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+
 		uid := jwt.GetUserIDFromContext(r.Context())
+
+		// Delete the cookie by setting its MaxAge to -1
 		http.SetCookie(w, &http.Cookie{
 			HttpOnly: true,
 			Path:     "/",
@@ -22,7 +26,9 @@ func New(log *slog.Logger) http.HandlerFunc {
 			Name:  "jwt",
 			Value: "",
 		})
+
 		log.Info("User logged out", slog.Int("uid", uid))
 		render.JSON(w, r, "Successfully logged out")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

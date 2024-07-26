@@ -20,6 +20,10 @@ import (
 	"os"
 )
 
+// TODO: make tests with mocks
+// TODO: save user to postgres after OAuth
+// TODO: handle error with empty URLParam
+
 func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
@@ -67,15 +71,15 @@ func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage) *
 	// Protected routes
 	router.Group(func(r chi.Router) {
 		r.Use(jwt.WithJWTAuth(log, db, cfg.SecretKey))
-		r.Post("/records", save.New(log, db))
-		r.Get("/records/{id}", get.New(log, db))
-		r.Delete("/records/{id}", delete.New(log, db))
-		r.Get("/users/logout", logout.New(log))
+		r.Post("/records", save.NewSaveHandler(log, db))
+		r.Get("/records/{id}", get.NewGetHandler(log, db))
+		r.Delete("/records/{id}", delete.NewDeleteHandler(log, db))
+		r.Get("/users/logout", logout.NewLogoutHandler(log))
 	})
 
 	// Public routes
-	router.Post("/users/register", register.New(log, db))
-	router.Get("/users/login", login.New(log, db, cfg.SecretKey))
+	router.Post("/users/register", register.NewRegisterHandler(log, db))
+	router.Get("/users/login", login.NewLoginHandler(log, db, cfg.SecretKey))
 
 	// OAuth routes
 	router.Get("/users/oauth/{provider}/callback", oauth.NewCallbackHandler(log))

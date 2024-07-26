@@ -24,6 +24,7 @@ type Request struct {
 	Password string `json:"password" validate:"required"`
 }
 
+// responseOK sends a successful response with the JWT token
 func responseOK(w http.ResponseWriter, r *http.Request, token string) {
 	render.JSON(w, r, Response{
 		Response: resp.OK(),
@@ -31,53 +32,67 @@ func responseOK(w http.ResponseWriter, r *http.Request, token string) {
 	})
 }
 
-func New(log *slog.Logger, userProvider storage.UserProvider, secret string) http.HandlerFunc {
+// NewLoginHandler returns a handler function to authenticate user login
+func NewLoginHandler(log *slog.Logger, userRepo storage.UserRepository, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.login.New"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+
 		var req Request
+		// Decode the request body into a Request struct
 		err := render.DecodeJSON(r.Body, &req)
 		if err != nil {
-			log.Error("failed to decode request", slog.Any("error", err))
-			render.Status(r, 400)
-			render.JSON(w, r, resp.Error("failed to decode request"))
+			log.Error("Failed to decode request", slog.Any("error", err))
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("Failed to decode request"))
 			return
 		}
-		log.Info("request body decoded", slog.Any("request", req))
+
+		log.Info("Request body decoded", slog.Any("request", req))
+
+		// Validate the Request struct
 		if err := validator.New().Struct(req); err != nil {
-			log.Info("failed to validate request", slog.Any("error", err))
+			log.Info("Failed to validate request", slog.Any("error", err))
 			var validateErr validator.ValidationErrors
 			errors.As(err, &validateErr)
-			render.Status(r, 400)
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.ValidationError(validateErr))
 			return
 		}
-		usr, err := userProvider.GetUserByEmail(req.Email)
+
+		// Retrieve the user by email
+		usr, err := userRepo.GetUserByEmail(req.Email)
 		if err != nil {
 			if errors.Is(err, storage.ErrUserNotFound) {
-				log.Info("user not found", slog.Any("email", req.Email))
-				render.Status(r, 404)
-				render.JSON(w, r, resp.Error("user not found"))
+				log.Info("User not found", slog.Any("email", req.Email))
+				render.Status(r, http.StatusNotFound)
+				render.JSON(w, r, resp.Error("User not found"))
 				return
 			}
-			log.Error("failed to get user", slog.Any("error", err))
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("failed to login"))
+			log.Error("Failed to get user", slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Failed to login"))
 			return
 		}
+
+		// Compare the hashed password with the provided password
 		if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(req.Password)); err != nil {
-			log.Info("invalid password", slog.Any("error", err))
-			render.Status(r, 401)
-			render.JSON(w, r, resp.Error("invalid credentials"))
+			log.Info("Invalid password", slog.Any("error", err))
+			render.Status(r, http.StatusUnauthorized)
+			render.JSON(w, r, resp.Error("Invalid credentials"))
 			return
 		}
+
+		// Generate a new JWT token
 		token, err := jwt.NewToken(usr, 24*time.Hour, secret)
 		if err != nil {
-			log.Error("failed to generate token", slog.Any("error", err))
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("internal error"))
+			log.Error("Failed to generate token", slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
+
+		// Set the JWT token as a cookie
 		http.SetCookie(w, &http.Cookie{
 			HttpOnly: true,
 			Path:     "/",
@@ -87,6 +102,7 @@ func New(log *slog.Logger, userProvider storage.UserProvider, secret string) htt
 			Name:  "jwt",
 			Value: token,
 		})
+
 		responseOK(w, r, token)
 	}
 }
