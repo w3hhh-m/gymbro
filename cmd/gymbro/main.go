@@ -22,7 +22,6 @@ import (
 
 func main() {
 	cfg := config.MustLoad()
-
 	log := setupLogger(cfg.Env)
 	log.Info("Configuration loaded")
 	log.Info("Logger loaded")
@@ -32,37 +31,61 @@ func main() {
 		log.Error("Error initializing storage", slog.Any("error", err))
 		os.Exit(1)
 	}
-
 	log.Info("Storage loaded")
 
+	router := setupRouter(cfg, log, db)
+	startServer(cfg, router, log)
+}
+
+func setupLogger(env string) *slog.Logger {
+	switch env {
+	case "production":
+		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	case "local":
+		//got it from https://github.com/dusted-go/logging
+		prettyHandler := prettylogger.NewHandler(&slog.HandlerOptions{
+			Level:       slog.LevelInfo,
+			AddSource:   false,
+			ReplaceAttr: nil,
+		})
+		return slog.New(prettyHandler)
+	default:
+		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
+}
+
+func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(mwlogger.New(log))
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.URLFormat) //to extract {var} from url
+	router.Use(middleware.URLFormat) // to extract {var} from url
 
 	oauth.NewOAuth(cfg)
 
-	//  TODO: group and use WithJWTAuth as router.Use()
-
 	// Protected routes
-	router.Post("/records", jwt.WithJWTAuth(save.New(log, db), log, db, cfg.SecretKey))
-	router.Get("/records/{id}", jwt.WithJWTAuth(get.New(log, db), log, db, cfg.SecretKey))
-	router.Delete("/records/{id}", jwt.WithJWTAuth(delete.New(log, db), log, db, cfg.SecretKey))
-	router.Get("/users/logout", jwt.WithJWTAuth(logout.New(log), log, db, cfg.SecretKey))
+	router.Group(func(r chi.Router) {
+		r.Use(jwt.WithJWTAuth(log, db, cfg.SecretKey))
+		r.Post("/records", save.New(log, db))
+		r.Get("/records/{id}", get.New(log, db))
+		r.Delete("/records/{id}", delete.New(log, db))
+		r.Get("/users/logout", logout.New(log))
+	})
 
 	// Public routes
 	router.Post("/users/register", register.New(log, db))
 	router.Get("/users/login", login.New(log, db, cfg.SecretKey))
 
 	// OAuth routes
-	router.Get("/users/oauth/{provider}/callback", oauth.NewCB(log))
-	router.Get("/users/oauth/logout/{provider}", oauth.NewLogout())
-	router.Get("/users/oauth/{provider}", oauth.NewLogin())
+	router.Get("/users/oauth/{provider}/callback", oauth.NewCallbackHandler(log))
+	router.Get("/users/oauth/{provider}/logout", oauth.NewLogoutHandler(log))
+	router.Get("/users/oauth/{provider}", oauth.NewLoginHandler(log))
 
-	log.Info("Starting server", slog.String("address", cfg.Address))
+	return router
+}
 
+func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) {
 	srv := http.Server{
 		Addr:         cfg.Address,
 		Handler:      router,
@@ -71,28 +94,11 @@ func main() {
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 
+	log.Info("Starting server", slog.String("address", cfg.Address))
+
 	if err := srv.ListenAndServe(); err != nil {
 		log.Error("Error starting server", slog.Any("error", err))
 	}
 
 	log.Error("Server shutdown", slog.String("address", cfg.Address))
-}
-
-// setupLogger is a function that initialize logger depends on environment
-func setupLogger(env string) *slog.Logger {
-	var log *slog.Logger
-
-	switch env {
-	case "production":
-		log = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	case "local":
-		//got it from https://github.com/dusted-go/logging
-		prettyHandler := prettylogger.NewHandler(&slog.HandlerOptions{
-			Level:       slog.LevelInfo,
-			AddSource:   false,
-			ReplaceAttr: nil,
-		})
-		log = slog.New(prettyHandler)
-	}
-	return log
 }

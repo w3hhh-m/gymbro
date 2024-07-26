@@ -1,7 +1,7 @@
 package jwt
 
 import (
-	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/http-server/handlers/response"
 	"GYMBRO/internal/storage"
 	"context"
 	"fmt"
@@ -17,78 +17,84 @@ type contextKey string
 
 const UserKey contextKey = "uid"
 
+// NewToken generates a new JWT token for a user with a specified duration and secret key
 func NewToken(usr storage.User, duration time.Duration, secret string) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["uid"] = usr.UserId
-	claims["username"] = usr.Username
-	claims["exp"] = time.Now().Add(duration).Unix()
-	tokenString, err := token.SignedString([]byte(secret))
-	if err != nil {
-		return "", err
+	claims := jwt.MapClaims{
+		"uid":      usr.UserId,
+		"username": usr.Username,
+		"exp":      time.Now().Add(duration).Unix(),
 	}
-	return tokenString, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
 }
 
-func WithJWTAuth(handlerFunc http.HandlerFunc, log *slog.Logger, userProvider storage.UserProvider, secret string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "lib.jwt.WithJWTAuth"
-		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
-		tokenString := GetTokenFromRequest(r)
-		token, err := validateJWT(tokenString, secret)
-		if err != nil {
-			log.Error("Failed to validate JWT", "error", err)
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("Internal error"))
-			return
-		}
-		if !token.Valid {
-			log.Info("Got invalid token")
-			render.Status(r, 401)
-			render.JSON(w, r, resp.Error("invalid token"))
-			return
-		}
-		claims := token.Claims.(jwt.MapClaims)
-		userID := int(claims["uid"].(float64))
-		if err != nil {
-			log.Error("Failed to get user ID", "error", err)
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("Internal error"))
-			return
-		}
-		u, err := userProvider.GetUserByID(userID)
-		if err != nil {
-			log.Error("Failed to get user", "error", err)
-			render.Status(r, 500)
-			render.JSON(w, r, resp.Error("Internal error"))
-			return
-		}
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, UserKey, u.UserId)
-		r = r.WithContext(ctx)
-		handlerFunc(w, r)
+// WithJWTAuth middleware checks for a valid JWT token and adds the user ID to the context
+func WithJWTAuth(log *slog.Logger, userProvider storage.UserProvider, secret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			const op = "lib.jwt.WithJWTAuth"
+			reqID := middleware.GetReqID(r.Context())
+			log = log.With(slog.String("op", op), slog.Any("request_id", reqID))
+
+			tokenString := GetTokenFromRequest(r)
+			if tokenString == "" {
+				log.Info("User is not authenticated")
+				render.Status(r, http.StatusUnauthorized)
+				render.JSON(w, r, resp.Error("You are not authenticated"))
+				return
+			}
+			token, err := validateJWT(tokenString, secret)
+			if err != nil {
+				log.Error("Failed to validate JWT", "error", err)
+				render.Status(r, http.StatusInternalServerError)
+				render.JSON(w, r, resp.Error("Internal error"))
+				return
+			}
+			if !token.Valid {
+				log.Info("Got invalid token")
+				render.Status(r, http.StatusUnauthorized)
+				render.JSON(w, r, resp.Error("Invalid token"))
+				return
+			}
+
+			claims := token.Claims.(jwt.MapClaims)
+			userID := int(claims["uid"].(float64))
+			if err != nil {
+				log.Error("Failed to extract user ID", "error", err)
+				render.Status(r, http.StatusInternalServerError)
+				render.JSON(w, r, resp.Error("Internal error"))
+				return
+			}
+
+			u, err := userProvider.GetUserByID(userID)
+			if err != nil {
+				log.Error("Failed to retrieve user", "error", err)
+				render.Status(r, http.StatusInternalServerError)
+				render.JSON(w, r, resp.Error("Internal error"))
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), UserKey, u.UserId)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	}
 }
 
+// GetTokenFromRequest extracts the JWT token from the Authorization header, query parameters, or cookies
 func GetTokenFromRequest(r *http.Request) string {
-	tokenAuth := r.Header.Get("Authorization")
-	tokenQuery := r.URL.Query().Get("token")
-	tokenCookie, err := r.Cookie("jwt")
-	if err != nil {
-		tokenCookie = &http.Cookie{}
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		return authHeader
 	}
-	if tokenAuth != "" {
-		return tokenAuth
-	}
-	if tokenQuery != "" {
+	if tokenQuery := r.URL.Query().Get("token"); tokenQuery != "" {
 		return tokenQuery
 	}
-	if tokenCookie.Value != "" {
+	if tokenCookie, err := r.Cookie("jwt"); err == nil {
 		return tokenCookie.Value
 	}
 	return ""
 }
 
+// validateJWT parses and validates the JWT token using the provided secret
 func validateJWT(tokenString, secret string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -98,10 +104,10 @@ func validateJWT(tokenString, secret string) (*jwt.Token, error) {
 	})
 }
 
+// GetUserIDFromContext retrieves the user ID from the context
 func GetUserIDFromContext(ctx context.Context) int {
-	userID, ok := ctx.Value(UserKey).(int)
-	if !ok {
-		return -1
+	if userID, ok := ctx.Value(UserKey).(int); ok {
+		return userID
 	}
-	return userID
+	return -1
 }
