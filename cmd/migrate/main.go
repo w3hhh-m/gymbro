@@ -12,7 +12,7 @@ import (
 
 func main() {
 	var direction string
-	flag.StringVar(&direction, "direction", "", "direction [up|down] default:up")
+	flag.StringVar(&direction, "direction", "up", "direction [up|down] default:up")
 	flag.Parse()
 	storagePath := os.Getenv("STORAGE_PATH") + "?sslmode=disable"
 	migrationsPath := "file://cmd/migrate/migrations"

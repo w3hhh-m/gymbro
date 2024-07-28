@@ -104,5 +104,6 @@ func NewLoginHandler(log *slog.Logger, userRepo storage.UserRepository, secret s
 		})
 
 		responseOK(w, r, token)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

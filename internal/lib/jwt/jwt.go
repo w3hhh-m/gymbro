@@ -68,7 +68,7 @@ func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, secret strin
 
 			u, err := userRepo.GetUserByID(userID)
 			if err != nil {
-				log.Error("Failed to retrieve user", "error", err)
+				log.Error("Failed to retrieve user", slog.Any("error", err), slog.Int("uid", userID))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Internal error"))
 				return

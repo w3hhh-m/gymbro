@@ -86,5 +86,7 @@ func NewRegisterHandler(log *slog.Logger, userRepo storage.UserRepository) http.
 
 		log.Info("Registered user", slog.Int("id", id))
 		responseOK(w, r, id)
+
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

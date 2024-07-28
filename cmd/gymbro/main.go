@@ -21,8 +21,6 @@ import (
 )
 
 // TODO: make tests with mocks
-// TODO: save user to postgres after OAuth
-// TODO: handle error with empty URLParam
 
 func main() {
 	cfg := config.MustLoad()
@@ -82,7 +80,7 @@ func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage) *
 	router.Get("/users/login", login.NewLoginHandler(log, db, cfg.SecretKey))
 
 	// OAuth routes
-	router.Get("/users/oauth/{provider}/callback", oauth.NewCallbackHandler(log))
+	router.Get("/users/oauth/{provider}/callback", oauth.NewCallbackHandler(log, db, cfg.SecretKey))
 	router.Get("/users/oauth/{provider}/logout", oauth.NewLogoutHandler(log))
 	router.Get("/users/oauth/{provider}", oauth.NewLoginHandler(log))
 

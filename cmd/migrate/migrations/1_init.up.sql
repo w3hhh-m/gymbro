@@ -3,9 +3,9 @@ CREATE TABLE IF NOT EXISTS users
     user_id serial PRIMARY KEY,
     username text NOT NULL UNIQUE,
     email text NOT NULL UNIQUE,
-    phone char(11) NOT NULL UNIQUE,
+    phone char(11) UNIQUE,
     password text NOT NULL,
-    date_of_birth date NOT NULL,
+    date_of_birth date,
     created_at timestamp NOT NULL
 );
 
