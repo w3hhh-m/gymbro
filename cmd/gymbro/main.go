@@ -20,8 +20,6 @@ import (
 	"os"
 )
 
-// TODO: make tests with mocks
-
 func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)

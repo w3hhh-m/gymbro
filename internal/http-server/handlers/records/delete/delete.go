@@ -21,12 +21,6 @@ func NewDeleteHandler(log *slog.Logger, recordRepo storage.RecordRepository) htt
 
 		// Extract the record ID from the URL parameters
 		id := chi.URLParam(r, "id")
-		if id == "" {
-			log.Info("Empty id in request URL")
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.Error("Empty id in request URL"))
-			return
-		}
 
 		// Convert the ID to an integer
 		idnum, err := strconv.Atoi(id)
@@ -43,6 +37,12 @@ func NewDeleteHandler(log *slog.Logger, recordRepo storage.RecordRepository) htt
 			log.Info("No such records", slog.Int("id", idnum))
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, resp.Error("No such records"))
+			return
+		}
+		if err != nil {
+			log.Error("Record was not retrieved", slog.Int("id", idnum), slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Internal error"))
 			return
 		}
 

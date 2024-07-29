@@ -26,7 +26,6 @@ func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 			Name:  "jwt",
 			Value: "",
 		})
-
 		log.Info("User logged out", slog.Int("uid", uid))
 		render.JSON(w, r, "Successfully logged out")
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)

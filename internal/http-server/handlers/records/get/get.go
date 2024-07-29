@@ -35,12 +35,6 @@ func NewGetHandler(log *slog.Logger, recordRepo storage.RecordRepository) http.H
 
 		// Extract the record ID from the URL parameters
 		id := chi.URLParam(r, "id")
-		if id == "" {
-			log.Info("Empty id in request URL")
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.Error("Empty id in request URL"))
-			return
-		}
 
 		// Convert the ID to an integer
 		idnum, err := strconv.Atoi(id)

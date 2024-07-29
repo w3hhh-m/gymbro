@@ -134,20 +134,9 @@ func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 				log.Error("Failed to delete user data from session", slog.String("provider", provider), slog.Any("error", err))
 			}
 		}
-		// Delete the JWT cookie by setting its MaxAge to -1
-		http.SetCookie(w, &http.Cookie{
-			HttpOnly: true,
-			Path:     "/",
-			MaxAge:   -1, // Delete the cookie
-			// Uncomment below for HTTPS:
-			// Secure: true,
-			Name:  "jwt",
-			Value: "",
-		})
-
+		http.Redirect(w, r, "/users/logout", http.StatusTemporaryRedirect)
 		log.Info("User logged out", slog.String("provider", provider))
 		render.JSON(w, r, "Successfully logged out")
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
 

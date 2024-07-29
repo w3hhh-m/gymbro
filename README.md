@@ -1,5 +1,12 @@
 # GYMBRO
-GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, PostgreSQL DB, slog logger, JWT Auth, OAuth, Migrations, ...
+GYMBRO API REPO. Pet-project that uses the following technologies: 
+1) Chi router
+2) PostgreSQL DB
+3) slog logger
+4) JWT Auth and OAuth
+5) DB Migrations
+6) Unit test using Testify
+7) Mocks for tests with Mockery
 
 *... got inspiration from Nikolay Tuzov (just learning...)*
 
@@ -14,9 +21,11 @@ GYMBRO API REPO. Pet-project that uses the following technologies: Chi router, P
 8) **jwt** - JWT :0
 9) **golang-migrate/migrate** - migrations :0
 10) **goth, gorilla/sessions** - OAuth
+11) **mockery** - mocks :0
+12) **testify** - test :0
 
 ## Note
-Trying to make pet project for gym rats. Hope this project will teach me a lot :) Trying to understand and comment code (*using my English skills*) as much as I can for future me. *(Starting 18th Jun 2024)*
+Trying to make pet project for gym rats. Hope this project will teach me a lot :). Kinda first project using golang
 
 ## Environment variables
 1) **CONFIG_PATH** - path to config.yaml file. for local env in this project - ./config/local.yaml
@@ -55,12 +64,15 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     │   │   ├───records == Handlers for records
     │   │   │   ├───delete
     │   │   │   │       delete.go
+    │   │   │   │       delete_test.go
     │   │   │   │
     │   │   │   ├───get
     │   │   │   │       get.go
+    │   │   │   │       get_test.go
     │   │   │   │
     │   │   │   └───save
     │   │   │           save.go
+    │   │   │           save_test.go
     │   │   │
     │   │   ├───response == Common response things for all handlers
     │   │   │       response.go
@@ -91,6 +103,9 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     │
     └───storage
         │   storage.go == Common things for all possible storages (not only postgres)
+        │
+        ├───mocks == Mocks for Unit testing handlers
+        │       RecordRepository.go
         │
         └───postgresql == Code only related to postgresql storage
                 postgresql.go

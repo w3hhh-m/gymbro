@@ -19,7 +19,7 @@ type Record struct {
 	RecordId     int       `json:"record_id"`
 	FkUserId     int       `json:"fk_user_id"`
 	FkExerciseId int       `json:"fk_exercise_id" validate:"required"`
-	Reps         int       `json:"reps" validate:"required"`
+	Reps         int       `json:"reps" validate:"required,gte=1"`
 	Weight       int       `json:"weight" validate:"required"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -41,6 +41,7 @@ type User struct {
 
 // Interfaces
 
+//go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=RecordRepository --output=./mocks
 type RecordRepository interface {
 	GetRecord(id int) (Record, error)
 	DeleteRecord(id int) error
