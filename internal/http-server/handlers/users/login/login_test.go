@@ -154,49 +154,6 @@ func TestLoginHandler(t *testing.T) {
 	}
 }
 
-/*
-	func FuzzLoginHandler(f *testing.F) {
-		f.Add(`{"email": "test@example.com", "password": "password"}`)
-
-		f.Fuzz(func(t *testing.T, input string) {
-			fmt.Printf("Testing input: %s\n", input)
-			logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-
-			userRepo := mocks.NewUserRepository(t)
-			userRepo.On("GetUserByEmail", mock.Anything).Return(func(email string) storage.User {
-				if email == "test@example.com" {
-					return storage.User{
-						Email:    "test@example.com",
-						Password: "$2a$10$7aIb9joXhtnCQZg4j.Qj6u.O/pDj4V5E3zSkHX9AF7rV0MPuquoaW",
-					}
-				}
-				return storage.User{}
-			}, func(email string) error {
-				if email == "test@example.com" {
-					return nil
-				}
-				return storage.ErrUserNotFound
-			}).Maybe()
-			secret := "secret"
-
-			handler := NewLoginHandler(logger, userRepo, secret)
-			r := chi.NewRouter()
-			r.Post("/login", handler)
-
-			req, err := http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer([]byte(input)))
-			require.NoError(t, err)
-
-			// Add middleware for request ID
-			//req = req.WithContext(context.WithValue(req.Context(), middleware.RequestIDKey, "request-id"))
-
-			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
-
-			// Check that the handler does not panic and responds with a status code
-			require.NotEqual(t, http.StatusInternalServerError, rr.Code)
-		})
-	}
-*/
 func FuzzLoginHandler(f *testing.F) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 

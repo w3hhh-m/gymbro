@@ -7,7 +7,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies:
 3) slog logger
 4) JWT Auth and OAuth
 5) DB Migrations
-6) Unit test using Testify
+6) Unit and Fuzz test using Testify
 7) Mocks for tests with Mockery
 
 *... got inspiration from Nikolay Tuzov (just learning...)*
