@@ -1,5 +1,7 @@
 # GYMBRO
-GYMBRO API REPO. Pet-project that uses the following technologies: 
+
+GYMBRO API REPO. Pet-project that uses the following technologies:
+
 1) Chi router
 2) PostgreSQL DB
 3) slog logger
@@ -11,6 +13,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies:
 *... got inspiration from Nikolay Tuzov (just learning...)*
 
 ## Dependencies
+
 1) **cleanenv** - parsing configuration
 2) **slog** - logging
 3) **pgx, pgxpool** - DB
@@ -25,9 +28,12 @@ GYMBRO API REPO. Pet-project that uses the following technologies:
 12) **testify** - test :0
 
 ## Note
-Trying to make pet project for gym rats. Hope this project will teach me a lot :). Kinda first project using golang
+
+Trying to make pet project for gym rats. Hope this project will teach me a lot :). Kinda first project using golang, so
+please dont judge strictly :)
 
 ## Environment variables
+
 1) **CONFIG_PATH** - path to config.yaml file. for local env in this project - ./config/local.yaml
 2) **STORAGE_PATH** - path to postgresql database. example: postgres://username:password@host:port/dbname
 3) **SECRET_KEY** - secret for jwt tokens
@@ -35,9 +41,11 @@ Trying to make pet project for gym rats. Hope this project will teach me a lot :
 5) **GOOGLE_SECRET** - secret from console.google.cloud.com for OAuth
 
 ## Migrations
+
 Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[up|down]`
 
 ## Structure
+
 ```
 ├───cmd == Folder where the main commands are located (such as running app)
 │   ├───gymbro
@@ -80,15 +88,18 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     │   │   └───users == Handlers for users
     │   │       ├───login
     │   │       │       login.go
+    │   │       │       login_test.go
     │   │       │
     │   │       ├───logout
     │   │       │       logout.go
+    │   │       │       logout_test.go
     │   │       │
     │   │       ├───oauth
     │   │       │       oauth.go
     │   │       │
     │   │       └───register
     │   │               register.go
+    │   │               register_test.g
     │   │
     │   └───middleware == Custom middlewares
     │       └───logger == Logger for router (got request, took 1ms, etc.)
@@ -97,6 +108,7 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     ├───lib
     │   ├───jwt
     │   │       jwt.go
+    │   │       jwt_test.go
     │   │
     │   └───prettylogger == Pretty logs for local env
     │           prettylogger.go
@@ -106,6 +118,7 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
         │
         ├───mocks == Mocks for Unit testing handlers
         │       RecordRepository.go
+        │       UserRepository.go
         │
         └───postgresql == Code only related to postgresql storage
                 postgresql.go

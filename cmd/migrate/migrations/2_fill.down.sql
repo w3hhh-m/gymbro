@@ -1,1 +1,2 @@
-DELETE FROM exercises;
+DELETE
+FROM exercises;

@@ -48,6 +48,7 @@ type RecordRepository interface {
 	SaveRecord(ex Record) (int, error)
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=UserRepository --output=./mocks
 type UserRepository interface {
 	GetUserByID(id int) (User, error)
 	GetUserByEmail(email string) (User, error)

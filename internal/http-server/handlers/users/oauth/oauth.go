@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+// Not gonna test bc repos have same functionality as in default users handlers and sure that goth is carefully tested without me
+
 // NewOAuth initializes OAuth settings and providers
 func NewOAuth(cfg *config.Config) {
 	store := sessions.NewCookieStore([]byte(cfg.SecretKey))

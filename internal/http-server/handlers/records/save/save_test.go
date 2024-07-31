@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func TestSaveNewHandler(t *testing.T) {
+func TestSaveHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
 	tests := []struct {
@@ -109,7 +109,7 @@ func TestSaveNewHandler(t *testing.T) {
 			var body []byte
 			var err error
 			if tt.name == "DecodeError" {
-				body = []byte("invalid json blablabla")
+				body = []byte("blablabla")
 			} else {
 				body, err = json.Marshal(tt.record)
 				require.NoError(t, err)
