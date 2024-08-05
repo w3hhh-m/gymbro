@@ -10,83 +10,80 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
-type Response struct {
-	resp.Response
-	Id int `json:"id"`
-}
-
-// responseOK sends a successful response with the user ID
-func responseOK(w http.ResponseWriter, r *http.Request, id int) {
-	render.JSON(w, r, Response{
-		Response: resp.OK(),
-		Id:       id,
-	})
-}
-
-// NewRegisterHandler returns a handler function to initiate user registration
+// NewRegisterHandler returns a handler function to initiate user registration.
 func NewRegisterHandler(log *slog.Logger, userRepo storage.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.register.New"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 
 		var usr storage.User
-		// Decode the request body into a User struct
+		// Decode the request body into a User struct.
 		err := render.DecodeJSON(r.Body, &usr)
 		if err != nil {
-			log.Error("Failed to decode request", slog.Any("error", err))
+			log.Warn("Failed to decode request", slog.Any("error", err))
 			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.Error("Failed to decode request"))
+			render.JSON(w, r, resp.Error("Failed to decode request", resp.CodeBadRequest, "Check the request fields for typos or naming errors"))
 			return
 		}
 
-		log.Info("Request body decoded", slog.Any("request", usr))
+		log.Debug("Request body decoded", slog.Any("request", usr))
 
-		// Validate the User struct
+		// Validate the User struct.
 		if err := validator.New().Struct(usr); err != nil {
-			log.Info("Failed to validate request", slog.Any("error", err))
+			log.Debug("Failed to validate request", slog.Any("error", err))
 			var validateErr validator.ValidationErrors
-			errors.As(err, &validateErr)
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.ValidationError(validateErr))
+			if errors.As(err, &validateErr) {
+				render.Status(r, http.StatusBadRequest)
+				render.JSON(w, r, resp.ValidationError(validateErr))
+			} else {
+				render.Status(r, http.StatusBadRequest)
+				render.JSON(w, r, resp.Error("Validation failed", resp.CodeValidationError, "Check the validation rules and request fields"))
+			}
 			return
 		}
 
-		// Set the creation time if it is not set
-		if usr.CreatedAt.IsZero() {
-			usr.CreatedAt = time.Now()
+		// Check if user already exists
+		existingUser, err := userRepo.GetUserByEmail(usr.Email)
+		if err != nil && !errors.Is(err, storage.ErrUserNotFound) {
+			log.Error("Failed to get user", slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
+			return
+		}
+		if existingUser != nil {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("User already exists", resp.CodeUserExists, "User with this email already exists. Check email for typos or try to login"))
+			return
 		}
 
-		// Hash the user's password
+		// Hash the user's password.
 		passHash, err := bcrypt.GenerateFromPassword([]byte(usr.Password), bcrypt.DefaultCost)
 		if err != nil {
-			log.Error("Failed to generate password", slog.Any("error", err))
+			log.Warn("Failed to generate password", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return
 		}
 
+		// Update the user struct with the hashed password.
 		usr.Password = string(passHash)
+		usr.UserId = storage.GenerateUID()
 
-		// Register the new user
+		// Register the new user.
 		id, err := userRepo.RegisterNewUser(usr)
 		if err != nil {
-			if errors.Is(err, storage.ErrUserExists) {
-				render.Status(r, http.StatusBadRequest)
-				render.JSON(w, r, resp.Error("User already exists"))
-				return
-			}
 			log.Error("Failed to register user", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return
 		}
 
-		log.Info("Registered user", slog.Int("id", id))
-		responseOK(w, r, id)
+		log.Debug("Registered user", slog.String("id", *id))
+		render.JSON(w, r, resp.OK())
 
-		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		// Redirect to the login page after successful registration.
+		http.Redirect(w, r, "/users/login", http.StatusTemporaryRedirect)
 	}
 }

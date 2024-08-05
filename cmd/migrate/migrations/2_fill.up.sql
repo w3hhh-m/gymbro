@@ -1,4 +1,4 @@
-INSERT INTO exercises (name)
+INSERT INTO Exercises (name)
 VALUES ('Squats'),
        ('Push-ups'),
        ('Pull-ups'),

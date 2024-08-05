@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -34,7 +33,6 @@ func TestLogoutHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := NewLogoutHandler(logger)
 			r := chi.NewRouter()
-			r.Use(middleware.URLFormat)
 			r.Post("/logout", handler)
 
 			req, err := http.NewRequest(http.MethodPost, "/logout", bytes.NewBuffer([]byte{}))

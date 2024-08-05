@@ -1,4 +1,7 @@
 env: "local" #defining environment (local, dev, prod ...)
+jwt_lifetime: 24h
+session_lifetime: 1m
+scheduler_interval: 20s
 http_server:
   address: "localhost:8888"
   timeout: 5s #timeout for reading request and sending response

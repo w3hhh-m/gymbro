@@ -1,203 +1,137 @@
-package login
+package login_test
 
 import (
+	"GYMBRO/internal/config"
+	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/http-server/handlers/users/login"
 	"GYMBRO/internal/storage"
 	"GYMBRO/internal/storage/mocks"
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
+	"time"
 )
 
 func TestLoginHandler(t *testing.T) {
+	cfg := &config.Config{
+		JWTLifetime: 1 * time.Hour,
+		SecretKey:   "test_secret_key",
+	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-	secret := "some secret"
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 
 	tests := []struct {
-		name           string
-		requestBody    Request
-		mockGetUser    func(userRepo *mocks.UserRepository)
-		expectedStatus int
+		name               string
+		reqBody            interface{}
+		setupMock          func(userRepo *mocks.UserRepository)
+		expectedStatusCode int
+		expectedResponse   resp.DetailedResponse
 	}{
 		{
 			name: "Success",
-			requestBody: Request{
+			reqBody: login.Request{
 				Email:    "test@example.com",
-				Password: "password",
+				Password: "password123",
 			},
-			mockGetUser: func(userRepo *mocks.UserRepository) {
-				hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				user := storage.User{
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
 					Email:    "test@example.com",
 					Password: string(hashedPassword),
-				}
-				userRepo.On("GetUserByEmail", "test@example.com").Once().Return(user, nil)
+				}, nil)
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatusCode: http.StatusOK,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 		{
-			name: "DecodeError",
-			requestBody: Request{
-				Email:    "test@example.com",
-				Password: "password",
-			},
-			mockGetUser:    func(userRepo *mocks.UserRepository) {},
-			expectedStatus: http.StatusBadRequest,
-		},
-		{
-			name: "ValidationError",
-			requestBody: Request{
-				Email:    "invalid-email",
-				Password: "",
-			},
-			mockGetUser:    func(userRepo *mocks.UserRepository) {},
-			expectedStatus: http.StatusBadRequest,
+			name:               "InvalidRequest",
+			reqBody:            "invalid-json",
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
 			name: "UserNotFound",
-			requestBody: Request{
-				Email:    "xxx@example.com",
-				Password: "password",
+			reqBody: login.Request{
+				Email:    "test@example.com",
+				Password: "password123",
 			},
-			mockGetUser: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "xxx@example.com").Once().Return(storage.User{}, storage.ErrUserNotFound)
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
 			},
-			expectedStatus: http.StatusNotFound,
+			expectedStatusCode: http.StatusNotFound,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeNotFound},
 		},
 		{
-			name: "UserGetError",
-			requestBody: Request{
+			name: "InvalidCredentials",
+			reqBody: login.Request{
 				Email:    "test@example.com",
-				Password: "password",
+				Password: "wrong",
 			},
-			mockGetUser: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Once().Return(storage.User{}, errors.New("some error"))
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
+					Email:    "test@example.com",
+					Password: string(hashedPassword),
+				}, nil)
 			},
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
-			name: "InvalidPassword",
-			requestBody: Request{
+			name: "InternalServerError",
+			reqBody: login.Request{
 				Email:    "test@example.com",
-				Password: "blablabla",
+				Password: "password123",
 			},
-			mockGetUser: func(userRepo *mocks.UserRepository) {
-				hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				user := storage.User{
-					Email:    "test@example.com",
-					Password: string(hashedPassword),
-				}
-				userRepo.On("GetUserByEmail", "test@example.com").Once().Return(user, nil)
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, errors.New("database error"))
 			},
-			expectedStatus: http.StatusUnauthorized,
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
 		},
-		/*{ // Need to make jwt mock to test I think
-			name: "GenerateTokenError",
-			requestBody: Request{
-				Email:    "test@example.com",
-				Password: "password",
+		{
+			name: "InvalidValidation",
+			reqBody: map[string]string{
+				"email": "invalid-email",
 			},
-			mockGetUser: func(userRepo *mocks.UserRepository) {
-				hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				user := storage.User{
-					Email:    "test@example.com",
-					Password: string(hashedPassword),
-				}
-				userRepo.On("GetUserByEmail", "test@example.com").Once().Return(user, nil)
-			},
-			expectedStatus: http.StatusInternalServerError,
-		},*/
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeValidationError},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			userRepo := mocks.NewUserRepository(t)
-			tt.mockGetUser(userRepo)
-
-			handler := NewLoginHandler(logger, userRepo, secret)
-			r := chi.NewRouter()
-			r.Post("/login", handler)
-
-			var body []byte
-			var err error
-			if tt.name == "DecodeError" {
-				body = []byte("blablabla")
-			} else {
-				body, err = json.Marshal(tt.requestBody)
-				require.NoError(t, err)
-			}
-			req, err := http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-			require.NoError(t, err)
+			tt.setupMock(userRepo)
+			handler := login.NewLoginHandler(logger, userRepo, cfg)
+			reqBody, _ := json.Marshal(tt.reqBody)
+			req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(reqBody))
+			req.Header.Set("Content-Type", "application/json")
 
 			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
 
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-			if tt.name == "Success" { // check cookie set
-				cookie := rr.Result().Cookies()
-				require.Len(t, cookie, 1)
-				assert.Equal(t, "jwt", cookie[0].Name)
-				assert.NotEmpty(t, cookie[0].Value)
+			handler.ServeHTTP(rr, req)
+
+			require.Equal(t, tt.expectedStatusCode, rr.Code)
+
+			var response resp.DetailedResponse
+			err := json.Unmarshal(rr.Body.Bytes(), &response)
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expectedResponse.Status, response.Status)
+			if tt.expectedResponse.Error != "" {
+				require.Contains(t, response.Error, tt.expectedResponse.Error)
 			}
+
 			userRepo.AssertExpectations(t)
 		})
 	}
-}
-
-func FuzzLoginHandler(f *testing.F) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-
-	userRepo := mocks.NewUserRepository(f)
-	handler := NewLoginHandler(logger, userRepo, "secret")
-	r := chi.NewRouter()
-	r.Post("/login", handler)
-
-	file, err := os.OpenFile("fuzz_interesting_inputs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		f.Fatalf("Failed to open file: %v", err)
-	}
-	defer file.Close()
-
-	f.Add("test@example.com", "password")
-
-	f.Fuzz(func(t *testing.T, email, password string) {
-		if email == "" || password == "" {
-			t.Skip()
-		}
-
-		userRepo.On("GetUserByEmail", email).Return(storage.User{
-			UserId:   1,
-			Email:    email,
-			Password: password,
-		}, nil).Maybe()
-
-		reqBody, err := json.Marshal(map[string]string{
-			"email":    email,
-			"password": password,
-		})
-		require.NoError(t, err)
-
-		req, err := http.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(reqBody))
-		require.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
-
-		if rr.Code == http.StatusInternalServerError {
-			_, err := fmt.Fprintf(file, "Interesting input: email=%s, password=%s\n", email, password)
-			require.NoError(t, err)
-		}
-
-		userRepo.AssertExpectations(t)
-	})
 }

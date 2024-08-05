@@ -2,15 +2,11 @@ package main
 
 import (
 	"GYMBRO/internal/config"
-	"GYMBRO/internal/http-server/handlers/records/delete"
-	"GYMBRO/internal/http-server/handlers/records/get"
-	"GYMBRO/internal/http-server/handlers/records/save"
-	"GYMBRO/internal/http-server/handlers/users/login"
-	"GYMBRO/internal/http-server/handlers/users/logout"
+	"GYMBRO/internal/http-server/handlers/factory"
 	"GYMBRO/internal/http-server/handlers/users/oauth"
-	"GYMBRO/internal/http-server/handlers/users/register"
+	"GYMBRO/internal/http-server/handlers/workouts/scheduler"
+	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
-	"GYMBRO/internal/lib/jwt"
 	"GYMBRO/internal/lib/prettylogger"
 	"GYMBRO/internal/storage/postgresql"
 	"github.com/go-chi/chi/v5"
@@ -21,22 +17,38 @@ import (
 )
 
 func main() {
+	// Load configuration
 	cfg := config.MustLoad()
+
+	// Setup logger
 	log := setupLogger(cfg.Env)
+	sessionManager := session.NewSessionManager()
+
 	log.Info("Configuration loaded")
 	log.Info("Logger loaded")
 
+	// Initialize database
 	db, err := postgresql.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("Error initializing storage", slog.Any("error", err))
 		os.Exit(1)
 	}
+	defer db.Close()
+
 	log.Info("Storage loaded")
 
-	router := setupRouter(cfg, log, db)
+	// Setup router
+	router := setupRouter(cfg, log, db, sessionManager)
+
+	// Start scheduler
+	workoutsched := scheduler.NewScheduler(log, db, sessionManager, cfg)
+	workoutsched.Start()
+
+	// Start server
 	startServer(cfg, router, log)
 }
 
+// setupLogger configures and returns a logger based on the environment.
 func setupLogger(env string) *slog.Logger {
 	switch env {
 	case "production":
@@ -44,7 +56,7 @@ func setupLogger(env string) *slog.Logger {
 	case "local":
 		//got it from https://github.com/dusted-go/logging
 		prettyHandler := prettylogger.NewHandler(&slog.HandlerOptions{
-			Level:       slog.LevelInfo,
+			Level:       slog.LevelDebug,
 			AddSource:   false,
 			ReplaceAttr: nil,
 		})
@@ -54,37 +66,57 @@ func setupLogger(env string) *slog.Logger {
 	}
 }
 
-func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage) *chi.Mux {
+// setupRouter configures and returns the router with all necessary routes and middleware.
+func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, sm *session.Manager) *chi.Mux {
+	handlerFactory := factory.NewConcreteHandlerFactory(log, db, db, cfg, sm)
+
+	userHandlerFactory := handlerFactory.GetUsersHandlerFactory()
+	middlewareHandlerFactory := handlerFactory.GetMiddlewaresHandlerFactory()
+	workoutHandlerFactory := handlerFactory.GetWorkoutsHandlerFactory()
+
 	router := chi.NewRouter()
+
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(mwlogger.New(log))
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.URLFormat) // to extract {var} from url
+	router.Use(middleware.URLFormat)
 
 	oauth.NewOAuth(cfg)
 
 	// Protected routes
 	router.Group(func(r chi.Router) {
-		r.Use(jwt.WithJWTAuth(log, db, cfg.SecretKey))
-		r.Post("/records", save.NewSaveHandler(log, db))
-		r.Get("/records/{id}", get.NewGetHandler(log, db))
-		r.Delete("/records/{id}", delete.NewDeleteHandler(log, db))
-		r.Get("/users/logout", logout.NewLogoutHandler(log))
+		r.Use(middlewareHandlerFactory.CreateJWTAuthHandler())
+
+		r.Route("/workouts", func(r chi.Router) {
+			r.Post("/start", workoutHandlerFactory.CreateStartHandler())
+
+			r.Group(func(r chi.Router) {
+				r.Use(middlewareHandlerFactory.CreateActiveSessionHandler())
+				r.Post("/end", workoutHandlerFactory.CreateEndHandler())
+				r.Route("/records", func(r chi.Router) {
+					r.Post("/add", workoutHandlerFactory.CreateAddHandler())
+				})
+			})
+		})
 	})
 
-	// Public routes
-	router.Post("/users/register", register.NewRegisterHandler(log, db))
-	router.Get("/users/login", login.NewLoginHandler(log, db, cfg.SecretKey))
+	router.Route("/users", func(r chi.Router) {
+		r.Post("/register", userHandlerFactory.CreateRegisterHandler())
+		r.Post("/login", userHandlerFactory.CreateLoginHandler())
+		r.Get("/logout", userHandlerFactory.CreateLogoutHandler())
 
-	// OAuth routes
-	router.Get("/users/oauth/{provider}/callback", oauth.NewCallbackHandler(log, db, cfg.SecretKey))
-	router.Get("/users/oauth/{provider}/logout", oauth.NewLogoutHandler(log))
-	router.Get("/users/oauth/{provider}", oauth.NewLoginHandler(log))
+		r.Route("/oauth", func(r chi.Router) {
+			r.Get("/{provider}/callback", userHandlerFactory.CreateOAuthCallbackHandler())
+			r.Get("/{provider}/logout", userHandlerFactory.CreateLogoutHandler())
+			r.Get("/{provider}", userHandlerFactory.CreateOAuthLoginHandler())
+		})
+	})
 
 	return router
 }
 
+// startServer configures and starts the HTTP server.
 func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) {
 	srv := http.Server{
 		Addr:         cfg.Address,

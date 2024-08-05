@@ -1,12 +1,13 @@
-package register
+package register_test
 
 import (
+	resp "GYMBRO/internal/http-server/handlers/response"
+	"GYMBRO/internal/http-server/handlers/users/register"
 	"GYMBRO/internal/storage"
 	"GYMBRO/internal/storage/mocks"
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -14,108 +15,120 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 func TestRegisterHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
 	tests := []struct {
-		name           string
-		user           storage.User
-		mockRegister   func(userRepo *mocks.UserRepository)
-		expectedStatus int
-		expectedBody   string
+		name               string
+		reqBody            interface{}
+		setupMock          func(userRepo *mocks.UserRepository)
+		expectedStatusCode int
+		expectedResponse   resp.DetailedResponse
 	}{
 		{
 			name: "Success",
-			user: storage.User{
-				Username:    "user",
-				Email:       "test@example.com",
-				Password:    "password",
-				Phone:       "70000000000",
-				DateOfBirth: time.Now(),
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
 			},
-			mockRegister: func(userRepo *mocks.UserRepository) {
-				userRepo.On("RegisterNewUser", mock.Anything).Once().Return(1, nil)
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
+				userRepo.On("RegisterNewUser", mock.Anything).Return(func(u storage.User) *string {
+					id := "new_user_id"
+					return &id
+				}, nil)
 			},
-			expectedStatus: http.StatusOK,
-			expectedBody:   `{"status":"OK","id":1}`,
+			expectedStatusCode: http.StatusOK,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 		{
-			name:           "DecodeError",
-			user:           storage.User{},
-			mockRegister:   func(userRepo *mocks.UserRepository) {},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"status":"ERROR","error":"Failed to decode request"}`,
+			name:               "InvalidRequest",
+			reqBody:            "invalid-json",
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
-			name: "InvalidData",
-			user: storage.User{
-				Username: "user",
+			name: "ValidationFailed",
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "invalid-email",
+				Password: "password123",
 			},
-			mockRegister:   func(userRepo *mocks.UserRepository) {},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"status":"ERROR","error":"field email is a required field, field phone is a required field, field password is a required field, field dateofbirth is a required field"}`,
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeValidationError},
 		},
 		{
-			name: "UserExists",
-			user: storage.User{
-				Username:    "user",
-				Email:       "test@example.com",
-				Password:    "password",
-				Phone:       "70000000000",
-				DateOfBirth: time.Now(),
+			name: "UserAlreadyExists",
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
 			},
-			mockRegister: func(userRepo *mocks.UserRepository) {
-				userRepo.On("RegisterNewUser", mock.Anything).Once().Return(0, storage.ErrUserExists)
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
+					Email: "test@example.com",
+				}, nil)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"status":"ERROR","error":"User already exists"}`,
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeUserExists},
 		},
 		{
-			name: "UserRegisterError",
-			user: storage.User{
-				Username:    "user",
-				Email:       "test@example.com",
-				Password:    "password",
-				Phone:       "70000000000",
-				DateOfBirth: time.Now(),
+			name: "RegistrationError",
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
 			},
-			mockRegister: func(userRepo *mocks.UserRepository) {
-				userRepo.On("RegisterNewUser", mock.Anything).Once().Return(0, errors.New("test error"))
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
+				userRepo.On("RegisterNewUser", mock.Anything).Return(nil, errors.New("database error"))
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"status":"ERROR","error":"Internal error"}`,
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name: "InternalServerError",
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
+			},
+			setupMock: func(userRepo *mocks.UserRepository) {
+				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, errors.New("database error"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			userRepo := mocks.NewUserRepository(t)
-			tt.mockRegister(userRepo)
-
-			handler := NewRegisterHandler(logger, userRepo)
-			r := chi.NewRouter()
-			r.Post("/users", handler)
-
-			var body []byte
-			var err error
-			if tt.name == "DecodeError" {
-				body = []byte("blablabla")
-			} else {
-				body, err = json.Marshal(tt.user)
-				require.NoError(t, err)
-			}
-
-			req, err := http.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(body))
-			require.NoError(t, err)
+			tt.setupMock(userRepo)
+			handler := register.NewRegisterHandler(logger, userRepo)
+			reqBody, _ := json.Marshal(tt.reqBody)
+			req := httptest.NewRequest("POST", "/users/register", bytes.NewBuffer(reqBody))
+			req.Header.Set("Content-Type", "application/json")
 
 			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
 
-			require.Equal(t, tt.expectedStatus, rr.Code)
-			require.JSONEq(t, tt.expectedBody, rr.Body.String())
+			handler.ServeHTTP(rr, req)
+
+			require.Equal(t, tt.expectedStatusCode, rr.Code)
+
+			var response resp.DetailedResponse
+			err := json.Unmarshal(rr.Body.Bytes(), &response)
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expectedResponse.Status, response.Status)
+			if tt.expectedResponse.Error != "" {
+				require.Contains(t, response.Error, tt.expectedResponse.Error)
+			}
 
 			userRepo.AssertExpectations(t)
 		})

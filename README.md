@@ -26,6 +26,7 @@ GYMBRO API REPO. Pet-project that uses the following technologies:
 10) **goth, gorilla/sessions** - OAuth
 11) **mockery** - mocks :0
 12) **testify** - test :0
+13) **google/uuid** - uuid generation
 
 ## Note
 
@@ -69,46 +70,65 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
     │
     ├───http-server
     │   ├───handlers == Server handlers :0
-    │   │   ├───records == Handlers for records
-    │   │   │   ├───delete
-    │   │   │   │       delete.go
-    │   │   │   │       delete_test.go
-    │   │   │   │
-    │   │   │   ├───get
-    │   │   │   │       get.go
-    │   │   │   │       get_test.go
-    │   │   │   │
-    │   │   │   └───save
-    │   │   │           save.go
-    │   │   │           save_test.go
+    │   │   ├───factory == Abstract factory creation pattern
+    │   │   │       abstract_handler_factory.go
+    │   │   │       middlewares_handler_factory.go
+    │   │   │       users_handler_factory.go
+    │   │   │       workouts_handler_factory.go
     │   │   │
     │   │   ├───response == Common response things for all handlers
     │   │   │       response.go
     │   │   │
-    │   │   └───users == Handlers for users
-    │   │       ├───login
-    │   │       │       login.go
-    │   │       │       login_test.go
+    │   │   ├───users == Handlers for users
+    │   │   │   ├───login
+    │   │   │   │       login.go
+    │   │   │   │       login_test.go
+    │   │   │   │
+    │   │   │   ├───logout
+    │   │   │   │       logout.go
+    │   │   │   │       logout_test.go
+    │   │   │   │
+    │   │   │   ├───oauth
+    │   │   │   │       oauth.go
+    │   │   │   │
+    │   │   │   └───register
+    │   │   │           register.go
+    │   │   │           register_test.go
+    │   │   │
+    │   │   └───workouts == Handlers for workouts
+    │   │       ├───end
+    │   │       │       end.go
+    │   │       │       end_test.go
     │   │       │
-    │   │       ├───logout
-    │   │       │       logout.go
-    │   │       │       logout_test.go
+    │   │       ├───records
+    │   │       │   └───add
+    │   │       │           add.go
+    │   │       │           add_test.go
     │   │       │
-    │   │       ├───oauth
-    │   │       │       oauth.go
+    │   │       ├───scheduler
+    │   │       │       scheduler.go
     │   │       │
-    │   │       └───register
-    │   │               register.go
-    │   │               register_test.g
+    │   │       ├───sessions
+    │   │       │       sessions.go
+    │   │       │
+    │   │       └───start
+    │   │               start.go
+    │   │               start_test.go
     │   │
     │   └───middleware == Custom middlewares
-    │       └───logger == Logger for router (got request, took 1ms, etc.)
-    │               logger.go
+    │       ├───jwt == For JWT Auth
+    │       │       jwt.go
+    │       │
+    │       ├───logger == Logger for router (got request, took 1ms, etc.)
+    │       │       logger.go
+    │       │
+    │       └───workout == For workout session check
+    │               workout.go
+    │               workout_test.go
     │
     ├───lib
     │   ├───jwt
     │   │       jwt.go
-    │   │       jwt_test.go
     │   │
     │   └───prettylogger == Pretty logs for local env
     │           prettylogger.go
@@ -117,8 +137,8 @@ Don't forget to set **STORAGE_PATH** and run `go run ./cmd/migrate --direction=[
         │   storage.go == Common things for all possible storages (not only postgres)
         │
         ├───mocks == Mocks for Unit testing handlers
-        │       RecordRepository.go
         │       UserRepository.go
+        │       WorkoutRepository.go
         │
         └───postgresql == Code only related to postgresql storage
                 postgresql.go

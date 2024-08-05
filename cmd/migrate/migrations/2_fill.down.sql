@@ -1,2 +1,2 @@
 DELETE
-FROM exercises;
+FROM Exercises;

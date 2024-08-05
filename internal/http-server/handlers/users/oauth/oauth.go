@@ -14,14 +14,11 @@ import (
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/google"
-	"golang.org/x/crypto/bcrypt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 )
-
-// Not gonna test bc repos have same functionality as in default users handlers and sure that goth is carefully tested without me
 
 // NewOAuth initializes OAuth settings and providers
 func NewOAuth(cfg *config.Config) {
@@ -37,8 +34,8 @@ func NewOAuth(cfg *config.Config) {
 	goth.UseProviders(google.New(cfg.GoogleKey, cfg.GoogleSecret, "http://"+cfg.Address+"/users/oauth/google/callback", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"))
 }
 
-// NewCallbackHandler returns a handler function to complete OAuth authentication
-func NewCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, secret string) http.HandlerFunc {
+// NewOAuthCallbackHandler returns a handler function to complete OAuth authentication
+func NewOAuthCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.oauth.NewCallbackHandler"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -51,52 +48,46 @@ func NewCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, secre
 		if err != nil {
 			log.Error("Failed to complete OAuth", slog.String("provider", provider), slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeOAuthError, "Please try again later"))
 			return
 		}
-		log.Info("Completed OAuth", slog.String("provider", provider), slog.Any("user", user))
+		log.Debug("Completed OAuth", slog.String("provider", provider), slog.String("email", user.Email))
 
 		dbUser, err := userRepo.GetUserByEmail(user.Email)
 		if err != nil && !errors.Is(err, storage.ErrUserNotFound) {
-			log.Error("Failed to retrieve user", slog.String("provider", provider), slog.Any("error", err))
+			log.Error("Failed to get user", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return
 		}
-		if dbUser.UserId == 0 {
+
+		if dbUser == nil {
 			username := strings.Split(user.Email, "@")[0]
 			newUser := storage.User{
-				Email:     user.Email,
-				Username:  username,
-				CreatedAt: time.Now(),
+				UserId:   storage.GenerateUID(),
+				Email:    user.Email,
+				Username: username,
+				GoogleId: user.UserID,
 			}
-			passHash, err := bcrypt.GenerateFromPassword([]byte("RaNdOmPaSsWoRdFoRoAuThUsErS(rEpLaCe)"), bcrypt.DefaultCost)
-			if err != nil {
-				log.Error("Failed to generate password", slog.Any("error", err))
-				render.Status(r, http.StatusInternalServerError)
-				render.JSON(w, r, resp.Error("Internal error"))
-				return
-			}
-			newUser.Password = string(passHash)
 			id, err := userRepo.RegisterNewUser(newUser)
 			if err != nil {
 				log.Error("Failed to register user", slog.Any("error", err))
 				render.Status(r, http.StatusInternalServerError)
-				render.JSON(w, r, resp.Error("Internal error"))
+				render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 				return
 			}
-			log.Info("Registered new OAuth user", slog.Int("id", id))
-			dbUser = newUser
-			dbUser.UserId = id
+			log.Debug("Registered new OAuth user", slog.String("id", *id))
+			dbUser = &newUser
+			dbUser.UserId = *id
 		} else {
-			log.Info("User already exists", slog.Any("user", dbUser))
+			log.Debug("User already exists", slog.Any("user", dbUser))
 		}
 
-		token, err := jwt.NewToken(dbUser, 24*time.Hour, secret)
+		token, err := jwt.NewToken(*dbUser, cfg.JWTLifetime, cfg.SecretKey)
 		if err != nil {
 			log.Error("Failed to generate token", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return
 		}
 
@@ -104,7 +95,7 @@ func NewCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, secre
 		http.SetCookie(w, &http.Cookie{
 			HttpOnly: true,
 			Path:     "/",
-			Expires:  time.Now().Add(24 * time.Hour),
+			Expires:  time.Now().Add(cfg.JWTLifetime),
 			// Uncomment below for HTTPS:
 			// Secure: true,
 			Name:  "jwt",
@@ -114,8 +105,8 @@ func NewCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, secre
 	}
 }
 
-// NewLogoutHandler returns a handler function to log out a user from OAuth
-func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
+// NewOAuthLogoutHandler returns a handler function to log out a user from OAuth
+func NewOAuthLogoutHandler(log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.oauth.NewLogoutHandler"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -127,7 +118,7 @@ func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 		if err := gothic.Logout(w, r); err != nil {
 			log.Error("Failed to logout", slog.String("provider", provider), slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, resp.Error("Internal error"))
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeOAuthError, "Please try again later"))
 		} else {
 			session, _ := gothic.Store.Get(r, "auth-session")
 			session.Options.MaxAge = -1
@@ -137,13 +128,11 @@ func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 			}
 		}
 		http.Redirect(w, r, "/users/logout", http.StatusTemporaryRedirect)
-		log.Info("User logged out", slog.String("provider", provider))
-		render.JSON(w, r, "Successfully logged out")
 	}
 }
 
-// NewLoginHandler returns a handler function to initiate OAuth login
-func NewLoginHandler(log *slog.Logger) http.HandlerFunc {
+// NewOAuthLoginHandler returns a handler function to initiate OAuth login
+func NewOAuthLoginHandler(log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.oauth.NewLoginHandler"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
@@ -152,10 +141,10 @@ func NewLoginHandler(log *slog.Logger) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), "provider", provider)
 		r = r.WithContext(ctx)
 
-		log.Info("Starting OAuth login", slog.String("provider", provider))
+		log.Debug("Starting OAuth login", slog.String("provider", provider))
 
 		if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-			log.Info("User already authenticated", slog.String("provider", provider), slog.Any("user", gothUser))
+			log.Debug("User already authenticated", slog.String("provider", provider), slog.String("email", gothUser.Email))
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		} else {
 			gothic.BeginAuthHandler(w, r)
