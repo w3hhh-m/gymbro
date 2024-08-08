@@ -1,15 +1,14 @@
 package postgresql
 
 import (
+	"GYMBRO/internal/storage"
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
-	"GYMBRO/internal/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"strings"
 )
 
 // Storage struct holds the PostgreSQL database connection pool
@@ -78,60 +77,111 @@ func (s *Storage) GetUserByEmail(email string) (*storage.User, error) {
 	return &user, nil
 }
 
-// CreateWorkout inserts a new workout record into the database
-func (s *Storage) CreateWorkout(workout storage.Workout) error {
-	const op = "storage.postgresql.CreateWorkout"
-	_, err := s.db.Exec(context.Background(), `INSERT INTO workouts (workout_id, fk_user_id, start_time, is_active) 
-		VALUES ($1, $2, $3, $4)`, workout.WorkoutId, workout.FkUserId, workout.StartTime, workout.IsActive)
-	return err
-}
+// GetWorkout retrieves a workout record by its ID.
+func (s *Storage) GetWorkout(workoutID string) (*storage.WorkoutWithRecords, error) {
+	const op = "storage.postgresql.GetWorkout"
 
-// EndWorkout updates an existing workout record to mark it as completed
-func (s *Storage) EndWorkout(workoutID string) error {
-	const op = "storage.postgresql.EndWorkout"
-	_, err := s.db.Exec(context.Background(), `UPDATE workouts SET end_time = $1, is_active = $2 WHERE workout_id = $3`,
-		time.Now(), false, workoutID)
-	return err
-}
+	query := `SELECT w.workout_id, w.fk_user_id, w.start_time, w.end_time, w.points, r.record_id, r.fk_workout_id, r.fk_exercise_id, r.reps, r.weight
+	FROM workouts w
+	LEFT JOIN records r ON w.workout_id = r.fk_workout_id
+	WHERE w.workout_id = $1`
 
-// AddRecord inserts a new record into the database and updates the workout points.
-func (s *Storage) AddRecord(record storage.Record) error {
-	const op = "storage.postgresql.AddRecord"
-	ctx := context.Background()
-
-	// Start a transaction.
-	tx, err := s.db.Begin(ctx)
+	rows, err := s.db.Query(context.Background(), query, workoutID)
 	if err != nil {
-		return err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storage.ErrWorkoutNotFound
+		}
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer rows.Close()
+
+	workoutWithRecords := &storage.WorkoutWithRecords{
+		WorkoutID: workoutID,
 	}
 
-	// Defer transaction rollback in case of error.
+	for rows.Next() {
+		var record storage.Record
+		err := rows.Scan(
+			&workoutWithRecords.WorkoutID,
+			&workoutWithRecords.UserID,
+			&workoutWithRecords.StartTime,
+			&workoutWithRecords.EndTime,
+			&workoutWithRecords.Points,
+			&record.RecordId,
+			&record.FkWorkoutId,
+			&record.FkExerciseId,
+			&record.Reps,
+			&record.Weight,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+
+		if record.RecordId != "" {
+			workoutWithRecords.Records = append(workoutWithRecords.Records, record)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return workoutWithRecords, nil
+}
+
+func (s *Storage) SaveWorkout(workout *storage.WorkoutSession) error {
+	const op = "storage.postgresql.SaveWorkout"
+	ctx := context.Background()
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
 	defer func() {
 		if err != nil {
 			tx.Rollback(ctx)
 		}
 	}()
 
-	// Insert the record into the database.
-	_, err = tx.Exec(ctx, `INSERT INTO records (record_id, fk_workout_id, fk_exercise_id, reps, weight) 
-		VALUES ($1, $2, $3, $4, $5)`,
-		record.RecordId, record.FkWorkoutId, record.FkExerciseId, record.Reps, record.Weight)
-	if err != nil {
-		return err
+	if len(workout.Records) < 1 {
+		tx.Commit(ctx)
+		return nil
 	}
 
-	// Calculate points.
-	points := record.Reps * record.Weight
+	userQuery := `UPDATE users SET points = points + $1 WHERE user_id = $2`
 
-	// Update the workout points.
-	_, err = tx.Exec(ctx, `UPDATE workouts 
-		SET points = COALESCE(points, 0) + $1
-		WHERE workout_id = $2`,
-		points, record.FkWorkoutId)
+	_, err = tx.Exec(ctx, userQuery, workout.Points, workout.UserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	// Commit the transaction.
+	workoutQuery := `INSERT INTO workouts (workout_id, fk_user_id, start_time, end_time, points, is_active) VALUES ($1, $2, $3, $4, $5, $6)`
+
+	_, err = tx.Exec(ctx, workoutQuery,
+		workout.SessionID,
+		workout.UserID,
+		workout.StartTime,
+		workout.LastUpdated,
+		workout.Points,
+		workout.IsActive,
+	)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	inParams := make([]string, 0, len(workout.Records)*5)
+	args := make([]interface{}, 0, len(workout.Records)*5)
+
+	for i, record := range workout.Records {
+		inParams = append(inParams, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d)", i*5+1, i*5+2, i*5+3, i*5+4, i*5+5))
+		args = append(args, record.RecordId, record.FkWorkoutId, record.FkExerciseId, record.Reps, record.Weight)
+	}
+
+	recordQuery := fmt.Sprintf(`INSERT INTO records (record_id, fk_workout_id, fk_exercise_id, reps, weight) VALUES %s`, strings.Join(inParams, ", "))
+
+	_, err = tx.Exec(ctx, recordQuery, args...)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
 	return tx.Commit(ctx)
 }

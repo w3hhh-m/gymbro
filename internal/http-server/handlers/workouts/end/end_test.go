@@ -3,8 +3,8 @@ package end_test
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
 	"GYMBRO/internal/http-server/handlers/workouts/end"
-	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	"GYMBRO/internal/lib/jwt"
+	"GYMBRO/internal/storage"
 	"GYMBRO/internal/storage/mocks"
 	"context"
 	"encoding/json"
@@ -19,34 +19,66 @@ import (
 
 func TestEndHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-	sessionManager := session.NewSessionManager()
 
 	tests := []struct {
 		name               string
 		userID             string
-		sessionID          string
-		setupMock          func(workoutRepo *mocks.WorkoutRepository)
+		setupMock          func(sessionRepo *mocks.SessionRepository, workoutRepo *mocks.WorkoutRepository)
 		expectedStatusCode int
 		expectedResponse   resp.DetailedResponse
 	}{
 		{
-			name:      "Success",
-			userID:    "user123",
-			sessionID: "session123",
-			setupMock: func(workoutRepo *mocks.WorkoutRepository) {
-				sessionManager.StartSession("user123", "session123")
-				workoutRepo.On("EndWorkout", "session123").Return(nil)
+			name:   "Success",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, workoutRepo *mocks.WorkoutRepository) {
+				session := &storage.WorkoutSession{
+					UserID:    "user123",
+					SessionID: "session123",
+					IsActive:  true,
+				}
+				sessionRepo.On("GetSession", "user123").Return(session, nil)
+				workoutRepo.On("SaveWorkout", session).Return(nil)
+				sessionRepo.On("DeleteSession", "user123").Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 		{
-			name:      "EndWorkoutError",
-			userID:    "user123",
-			sessionID: "session123",
-			setupMock: func(workoutRepo *mocks.WorkoutRepository) {
-				sessionManager.StartSession("user123", "session123")
-				workoutRepo.On("EndWorkout", "session123").Return(errors.New("db error"))
+			name:   "SessionNotFound",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, workoutRepo *mocks.WorkoutRepository) {
+				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name:   "SaveWorkoutError",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, workoutRepo *mocks.WorkoutRepository) {
+				session := &storage.WorkoutSession{
+					UserID:    "user123",
+					SessionID: "session123",
+					IsActive:  true,
+				}
+				sessionRepo.On("GetSession", "user123").Return(session, nil)
+				workoutRepo.On("SaveWorkout", session).Return(errors.New("save workout error"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name:   "DeleteSessionError",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, workoutRepo *mocks.WorkoutRepository) {
+				session := &storage.WorkoutSession{
+					UserID:    "user123",
+					SessionID: "session123",
+					IsActive:  true,
+				}
+				sessionRepo.On("GetSession", "user123").Return(session, nil)
+				workoutRepo.On("SaveWorkout", session).Return(nil)
+				sessionRepo.On("DeleteSession", "user123").Return(errors.New("delete session error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -55,9 +87,11 @@ func TestEndHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			sessionRepo := mocks.NewSessionRepository(t)
 			workoutRepo := mocks.NewWorkoutRepository(t)
-			tt.setupMock(workoutRepo)
-			handler := end.NewEndHandler(logger, workoutRepo, sessionManager)
+			tt.setupMock(sessionRepo, workoutRepo)
+
+			handler := end.NewEndHandler(logger, sessionRepo, workoutRepo)
 
 			req := httptest.NewRequest("POST", "/workouts/end", nil)
 			ctx := context.WithValue(req.Context(), jwt.UserKey, tt.userID)
@@ -78,6 +112,7 @@ func TestEndHandler(t *testing.T) {
 				require.Equal(t, tt.expectedResponse.Code, response.Code)
 			}
 
+			sessionRepo.AssertExpectations(t)
 			workoutRepo.AssertExpectations(t)
 		})
 	}

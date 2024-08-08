@@ -2,11 +2,10 @@ package start_test
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	"GYMBRO/internal/http-server/handlers/workouts/start"
 	"GYMBRO/internal/lib/jwt"
+	"GYMBRO/internal/storage"
 	"GYMBRO/internal/storage/mocks"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,33 +16,35 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestStartHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-	sessionManager := session.NewSessionManager()
 
 	tests := []struct {
 		name               string
 		userID             string
-		setupMock          func(workoutRepo *mocks.WorkoutRepository)
+		setupMock          func(sessionRepo *mocks.SessionRepository)
 		expectedStatusCode int
 		expectedResponse   resp.DetailedResponse
 	}{
 		{
 			name:   "Success",
 			userID: "user123",
-			setupMock: func(workoutRepo *mocks.WorkoutRepository) {
-				workoutRepo.On("CreateWorkout", mock.Anything).Return(nil)
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
+				sessionRepo.On("CreateSession", mock.AnythingOfType("storage.WorkoutSession")).Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 		{
-			name:   "CreateWorkoutError",
-			userID: "user1234",
-			setupMock: func(workoutRepo *mocks.WorkoutRepository) {
-				workoutRepo.On("CreateWorkout", mock.Anything).Return(errors.New("db error"))
+			name:   "CreateSessionError",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
+				sessionRepo.On("CreateSession", mock.AnythingOfType("storage.WorkoutSession")).Return(errors.New("db error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -51,8 +52,15 @@ func TestStartHandler(t *testing.T) {
 		{
 			name:   "UserHasActiveSession",
 			userID: "user123",
-			setupMock: func(workoutRepo *mocks.WorkoutRepository) {
-				sessionManager.StartSession("user123", "session123")
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				activeSession := &storage.WorkoutSession{
+					SessionID:   "session123",
+					UserID:      "user123",
+					StartTime:   time.Now(),
+					LastUpdated: time.Now(),
+					IsActive:    true,
+				}
+				sessionRepo.On("GetSession", "user123").Return(activeSession, nil)
 			},
 			expectedStatusCode: http.StatusConflict,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeActiveWorkout},
@@ -61,13 +69,12 @@ func TestStartHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			workoutRepo := mocks.NewWorkoutRepository(t)
-			tt.setupMock(workoutRepo)
-			handler := start.NewStartHandler(logger, workoutRepo, sessionManager)
+			sessionRepo := mocks.NewSessionRepository(t)
+			tt.setupMock(sessionRepo)
 
-			reqBody, _ := json.Marshal("")
-			req := httptest.NewRequest("POST", "/workouts/start", bytes.NewBuffer(reqBody))
-			req.Header.Set("Content-Type", "application/json")
+			handler := start.NewStartHandler(logger, sessionRepo)
+
+			req := httptest.NewRequest("POST", "/workouts/start", nil)
 			ctx := context.WithValue(req.Context(), jwt.UserKey, tt.userID)
 			req = req.WithContext(ctx)
 
@@ -86,7 +93,7 @@ func TestStartHandler(t *testing.T) {
 				require.Equal(t, tt.expectedResponse.Code, response.Code)
 			}
 
-			workoutRepo.AssertExpectations(t)
+			sessionRepo.AssertExpectations(t)
 		})
 	}
 }

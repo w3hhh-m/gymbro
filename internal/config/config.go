@@ -14,6 +14,8 @@ type Config struct {
 	SessionLifetime   time.Duration `yaml:"session_lifetime" env-required:"true"`
 	SchedulerInterval time.Duration `yaml:"scheduler_interval" env-required:"true"`
 	StoragePath       string        `yaml:"storage_path" env-required:"true" env:"STORAGE_PATH"`
+	RedisPath         string        `yaml:"redis_path" env-required:"true" env:"REDIS_PATH"`
+	RedisPassword     string        `yaml:"redis_password" env-required:"true" env:"REDIS_PASSWORD"`
 	SecretKey         string        `yaml:"secret_key" env-required:"true" env:"SECRET_KEY"`
 	GoogleKey         string        `yaml:"google_key" env-required:"true" env:"GOOGLE_KEY"`
 	GoogleSecret      string        `yaml:"google_secret" env-required:"true" env:"GOOGLE_SECRET"`

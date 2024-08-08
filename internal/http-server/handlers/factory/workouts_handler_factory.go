@@ -2,8 +2,7 @@ package factory
 
 import (
 	"GYMBRO/internal/http-server/handlers/workouts/end"
-	"GYMBRO/internal/http-server/handlers/workouts/records/add"
-	"GYMBRO/internal/http-server/handlers/workouts/sessions"
+	getwo "GYMBRO/internal/http-server/handlers/workouts/get"
 	"GYMBRO/internal/http-server/handlers/workouts/start"
 	"GYMBRO/internal/storage"
 	"log/slog"
@@ -14,33 +13,33 @@ import (
 type WorkoutsHandlerFactory interface {
 	CreateStartHandler() http.HandlerFunc
 	CreateEndHandler() http.HandlerFunc
-	CreateAddHandler() http.HandlerFunc
+	CreateGetWorkoutHandler() http.HandlerFunc
 }
 
 // WorkoutHandlerFactory implements the WorkoutsHandlerFactory interface.
 type WorkoutHandlerFactory struct {
-	log  *slog.Logger
-	repo storage.WorkoutRepository
-	sm   *session.Manager
+	log   *slog.Logger
+	wrepo storage.WorkoutRepository
+	srepo storage.SessionRepository
 }
 
 // NewWorkoutHandlerFactory creates a new instance of WorkoutHandlerFactory.
-func NewWorkoutHandlerFactory(log *slog.Logger, repo storage.WorkoutRepository, sm *session.Manager) *WorkoutHandlerFactory {
+func NewWorkoutHandlerFactory(log *slog.Logger, wrepo storage.WorkoutRepository, srepo storage.SessionRepository) *WorkoutHandlerFactory {
 	return &WorkoutHandlerFactory{
-		log:  log,
-		repo: repo,
-		sm:   sm,
+		log:   log,
+		wrepo: wrepo,
+		srepo: srepo,
 	}
 }
 
 func (f *WorkoutHandlerFactory) CreateStartHandler() http.HandlerFunc {
-	return start.NewStartHandler(f.log, f.repo, f.sm)
+	return start.NewStartHandler(f.log, f.srepo)
 }
 
 func (f *WorkoutHandlerFactory) CreateEndHandler() http.HandlerFunc {
-	return end.NewEndHandler(f.log, f.repo, f.sm)
+	return end.NewEndHandler(f.log, f.srepo, f.wrepo)
 }
 
-func (f *WorkoutHandlerFactory) CreateAddHandler() http.HandlerFunc {
-	return add.NewAddHandler(f.log, f.repo, f.sm)
+func (f *WorkoutHandlerFactory) CreateGetWorkoutHandler() http.HandlerFunc {
+	return getwo.NewGetWorkoutHandler(f.log, f.wrepo)
 }

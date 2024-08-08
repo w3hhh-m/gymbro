@@ -2,7 +2,6 @@ package factory
 
 import (
 	"GYMBRO/internal/config"
-	"GYMBRO/internal/http-server/handlers/workouts/sessions"
 	mwjwt "GYMBRO/internal/http-server/middleware/jwt"
 	mwworkout "GYMBRO/internal/http-server/middleware/workout"
 	"GYMBRO/internal/storage"
@@ -18,26 +17,26 @@ type MiddlewaresHandlerFactory interface {
 
 // MiddlewareHandlerFactory implements the MiddlewaresHandlerFactory interface.
 type MiddlewareHandlerFactory struct {
-	log  *slog.Logger
-	repo storage.UserRepository
-	cfg  *config.Config
-	sm   *session.Manager
+	log   *slog.Logger
+	urepo storage.UserRepository
+	srepo storage.SessionRepository
+	cfg   *config.Config
 }
 
 // NewMiddlewareHandlerFactory creates a new instance of MiddlewareHandlerFactory.
-func NewMiddlewareHandlerFactory(log *slog.Logger, repo storage.UserRepository, cfg *config.Config, sm *session.Manager) *MiddlewareHandlerFactory {
+func NewMiddlewareHandlerFactory(log *slog.Logger, urepo storage.UserRepository, srepo storage.SessionRepository, cfg *config.Config) *MiddlewareHandlerFactory {
 	return &MiddlewareHandlerFactory{
-		log:  log,
-		repo: repo,
-		cfg:  cfg,
-		sm:   sm,
+		log:   log,
+		urepo: urepo,
+		srepo: srepo,
+		cfg:   cfg,
 	}
 }
 
 func (f *MiddlewareHandlerFactory) CreateJWTAuthHandler() func(http.Handler) http.Handler {
-	return mwjwt.WithJWTAuth(f.log, f.repo, f.cfg)
+	return mwjwt.WithJWTAuth(f.log, f.urepo, f.cfg)
 }
 
 func (f *MiddlewareHandlerFactory) CreateActiveSessionHandler() func(http.Handler) http.Handler {
-	return mwworkout.WithActiveSessionCheck(f.log, f.sm)
+	return mwworkout.WithActiveSessionCheck(f.log, f.srepo)
 }

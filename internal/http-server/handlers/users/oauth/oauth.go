@@ -71,6 +71,12 @@ func NewOAuthCallbackHandler(log *slog.Logger, userRepo storage.UserRepository, 
 			}
 			id, err := userRepo.RegisterNewUser(newUser)
 			if err != nil {
+				if errors.Is(err, storage.ErrUserExists) {
+					log.Error("User already exists", slog.Any("error", err))
+					render.Status(r, http.StatusBadRequest)
+					render.JSON(w, r, resp.Error("User exists", resp.CodeUserExists, "User with this username or email already exists. Try again with another username or email"))
+					return
+				}
 				log.Error("Failed to register user", slog.Any("error", err))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))

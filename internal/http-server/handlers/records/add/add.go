@@ -2,7 +2,6 @@ package add
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	"GYMBRO/internal/lib/jwt"
 	"GYMBRO/internal/storage"
 	"errors"
@@ -14,16 +13,13 @@ import (
 )
 
 // NewAddHandler returns a handler function to add a new workout record.
-func NewAddHandler(log *slog.Logger, woRepo storage.WorkoutRepository, sm *session.Manager) http.HandlerFunc {
+func NewAddHandler(log *slog.Logger, sessionRepo storage.SessionRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.workouts.records.add.New"
 		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
 
 		// Retrieve user ID from JWT token in context.
 		userID := jwt.GetUserIDFromContext(r.Context())
-
-		// Get the current workout session for the user.
-		workoutSession := sm.GetSession(userID)
 
 		var rec storage.Record
 		// Decode the request body into a Record struct.
@@ -35,9 +31,21 @@ func NewAddHandler(log *slog.Logger, woRepo storage.WorkoutRepository, sm *sessi
 			return
 		}
 
+		// Get the current workout session for the user.
+		activeSession, err := sessionRepo.GetSession(userID)
+		if err != nil {
+			log.Error("Cant get session", slog.String("user_id", userID), slog.Any("error", err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
+			return
+		}
+
 		// Set the workout ID and generate a new record ID.
-		rec.FkWorkoutId = workoutSession.SessionID
+		rec.FkWorkoutId = activeSession.SessionID
 		rec.RecordId = storage.GenerateUID()
+
+		// Calculate points
+		points := rec.Reps * rec.Weight
 
 		log.Debug("Request body decoded", slog.Any("request", rec))
 
@@ -55,12 +63,12 @@ func NewAddHandler(log *slog.Logger, woRepo storage.WorkoutRepository, sm *sessi
 			return
 		}
 
-		sm.UpdateSession(userID)
+		activeSession.Records = append(activeSession.Records, rec)
+		activeSession.Points += points
 
-		// Add the new record to the workout repository.
-		err = woRepo.AddRecord(rec)
-		if err != nil {
-			log.Error("Failed to save record", slog.Any("error", err))
+		// Update session data
+		if err := sessionRepo.UpdateSession(userID, activeSession); err != nil {
+			log.Error("Failed to update workout", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return

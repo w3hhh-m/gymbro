@@ -4,11 +4,11 @@ import (
 	"GYMBRO/internal/config"
 	"GYMBRO/internal/http-server/handlers/factory"
 	"GYMBRO/internal/http-server/handlers/users/oauth"
-	"GYMBRO/internal/http-server/handlers/workouts/scheduler"
-	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	mwlogger "GYMBRO/internal/http-server/middleware/logger"
 	"GYMBRO/internal/lib/prettylogger"
+	"GYMBRO/internal/services"
 	"GYMBRO/internal/storage/postgresql"
+	"GYMBRO/internal/storage/redis"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"log/slog"
@@ -22,7 +22,6 @@ func main() {
 
 	// Setup logger
 	log := setupLogger(cfg.Env)
-	sessionManager := session.NewSessionManager()
 
 	log.Info("Configuration loaded")
 	log.Info("Logger loaded")
@@ -37,12 +36,22 @@ func main() {
 
 	log.Info("Storage loaded")
 
+	// Initialize session manager
+
+	sessionManager, err := redis.New(cfg.RedisPath, cfg.RedisPassword, 0)
+	if err != nil {
+		log.Error("Error initializing session manager", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	log.Info("Session manager loaded")
+
 	// Setup router
 	router := setupRouter(cfg, log, db, sessionManager)
 
 	// Start scheduler
-	workoutsched := scheduler.NewScheduler(log, db, sessionManager, cfg)
-	workoutsched.Start()
+	sessionSched := services.NewSessionScheduler(sessionManager, db, cfg, log)
+	sessionSched.Start()
 
 	// Start server
 	startServer(cfg, router, log)
@@ -67,12 +76,13 @@ func setupLogger(env string) *slog.Logger {
 }
 
 // setupRouter configures and returns the router with all necessary routes and middleware.
-func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, sm *session.Manager) *chi.Mux {
-	handlerFactory := factory.NewConcreteHandlerFactory(log, db, db, cfg, sm)
+func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, sm *redis.RedisStorage) *chi.Mux {
+	handlerFactory := factory.NewConcreteHandlerFactory(log, db, db, sm, cfg)
 
 	userHandlerFactory := handlerFactory.GetUsersHandlerFactory()
 	middlewareHandlerFactory := handlerFactory.GetMiddlewaresHandlerFactory()
 	workoutHandlerFactory := handlerFactory.GetWorkoutsHandlerFactory()
+	recordHandlerFactory := handlerFactory.GetRecordsHandlerFactory()
 
 	router := chi.NewRouter()
 
@@ -90,12 +100,14 @@ func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, s
 
 		r.Route("/workouts", func(r chi.Router) {
 			r.Post("/start", workoutHandlerFactory.CreateStartHandler())
-
+			r.Get("/{workoutID}", workoutHandlerFactory.CreateGetWorkoutHandler())
 			r.Group(func(r chi.Router) {
 				r.Use(middlewareHandlerFactory.CreateActiveSessionHandler())
 				r.Post("/end", workoutHandlerFactory.CreateEndHandler())
 				r.Route("/records", func(r chi.Router) {
-					r.Post("/add", workoutHandlerFactory.CreateAddHandler())
+					r.Post("/add", recordHandlerFactory.CreateAddHandler())
+					r.Put("/{recordID}", recordHandlerFactory.CreateUpdateHandler())
+					r.Delete("/{recordID}", recordHandlerFactory.CreateDeleteHandler())
 				})
 			})
 		})

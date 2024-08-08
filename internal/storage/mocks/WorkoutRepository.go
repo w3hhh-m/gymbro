@@ -13,53 +13,47 @@ type WorkoutRepository struct {
 	mock.Mock
 }
 
-// AddRecord provides a mock function with given fields: record
-func (_m *WorkoutRepository) AddRecord(record storage.Record) error {
-	ret := _m.Called(record)
+// GetWorkout provides a mock function with given fields: _a0
+func (_m *WorkoutRepository) GetWorkout(_a0 string) (*storage.WorkoutWithRecords, error) {
+	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AddRecord")
+		panic("no return value specified for GetWorkout")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(storage.Record) error); ok {
-		r0 = rf(record)
+	var r0 *storage.WorkoutWithRecords
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*storage.WorkoutWithRecords, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(string) *storage.WorkoutWithRecords); ok {
+		r0 = rf(_a0)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.WorkoutWithRecords)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// CreateWorkout provides a mock function with given fields: workout
-func (_m *WorkoutRepository) CreateWorkout(workout storage.Workout) error {
-	ret := _m.Called(workout)
+// SaveWorkout provides a mock function with given fields: _a0
+func (_m *WorkoutRepository) SaveWorkout(_a0 *storage.WorkoutSession) error {
+	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateWorkout")
+		panic("no return value specified for SaveWorkout")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(storage.Workout) error); ok {
-		r0 = rf(workout)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// EndWorkout provides a mock function with given fields: workoutID
-func (_m *WorkoutRepository) EndWorkout(workoutID string) error {
-	ret := _m.Called(workoutID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for EndWorkout")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(workoutID)
+	if rf, ok := ret.Get(0).(func(*storage.WorkoutSession) error); ok {
+		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
 	}

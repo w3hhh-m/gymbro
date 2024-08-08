@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS Users
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash TEXT,
+    points INT NOT NULL DEFAULT 0,
     date_of_birth date,
     google_id VARCHAR(100) UNIQUE,
     fk_clan_id TEXT REFERENCES Clans(clan_id),

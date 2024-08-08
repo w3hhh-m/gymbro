@@ -8,10 +8,11 @@ import (
 
 // DetailedResponse represents a more detailed API response structure for errors.
 type DetailedResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-	Code   string `json:"code,omitempty"`
-	Advice string `json:"advice,omitempty"`
+	Status string      `json:"status"`
+	Error  string      `json:"error,omitempty"`
+	Code   string      `json:"code,omitempty"`
+	Advice string      `json:"advice,omitempty"`
+	Data   interface{} `json:"data,omitempty"`
 }
 
 // Constants for response status and error codes.
@@ -27,6 +28,7 @@ const (
 	CodeActiveWorkout   = "ACTIVE_WORKOUT"
 	CodeNoActiveWorkout = "NO_ACTIVE_WORKOUT"
 	CodeUnauthorized    = "UNAUTHORIZED"
+	CodeForbidden       = "FORBIDDEN"
 )
 
 // OK returns a response indicating a successful operation.
@@ -66,5 +68,14 @@ func ValidationError(errs validator.ValidationErrors) DetailedResponse {
 		Error:  strings.Join(errMsgs, ", "),
 		Code:   CodeValidationError,
 		Advice: "Check the input fields for validation errors",
+	}
+}
+
+// Data returns a response with the given data.
+func Data(data interface{}) DetailedResponse {
+	return DetailedResponse{
+		Status: StatusOK,
+		Code:   StatusOK,
+		Data:   data,
 	}
 }

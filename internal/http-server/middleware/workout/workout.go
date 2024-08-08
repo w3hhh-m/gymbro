@@ -2,8 +2,9 @@ package mwworkout
 
 import (
 	resp "GYMBRO/internal/http-server/handlers/response"
-	session "GYMBRO/internal/http-server/handlers/workouts/sessions"
 	"GYMBRO/internal/lib/jwt"
+	"GYMBRO/internal/storage"
+	"errors"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"log/slog"
@@ -11,7 +12,7 @@ import (
 )
 
 // WithActiveSessionCheck middleware ensures that a user has an active workout session
-func WithActiveSessionCheck(log *slog.Logger, sm *session.Manager) func(http.Handler) http.Handler {
+func WithActiveSessionCheck(log *slog.Logger, sessionRepo storage.SessionRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const op = "middleware.mwworkout.WithActiveSessionCheck"
@@ -22,7 +23,17 @@ func WithActiveSessionCheck(log *slog.Logger, sm *session.Manager) func(http.Han
 			userID := jwt.GetUserIDFromContext(r.Context())
 
 			// Retrieve the active session for the user
-			session := sm.GetSession(userID)
+			session, err := sessionRepo.GetSession(userID)
+
+			if err != nil {
+				if !errors.Is(err, storage.ErrNoSession) {
+					log.Error("Cant get session", slog.String("user_id", userID), slog.Any("error", err))
+					render.Status(r, http.StatusInternalServerError)
+					render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
+					return
+				}
+			}
+
 			if session == nil {
 				// Log and respond if there is no active session
 				log.Debug("No active session", slog.String("user_id", userID))
