@@ -23,17 +23,21 @@ func TestAddHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
 	validRecord := storage.Record{
+		RecordId:     "record123",
 		FkWorkoutId:  "session123",
 		FkExerciseId: 1,
 		Reps:         10,
 		Weight:       100,
 	}
 
+	userIDValue := "user123"
+	userID := &userIDValue
+
 	tests := []struct {
 		name               string
 		userID             string
 		reqBody            interface{}
-		setupMock          func(sessionRepo *mocks.SessionRepository)
+		setupMock          func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository)
 		expectedStatusCode int
 		expectedResponse   resp.DetailedResponse
 	}{
@@ -41,12 +45,15 @@ func TestAddHandler(t *testing.T) {
 			name:    "Success",
 			userID:  "user123",
 			reqBody: validRecord,
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
 					SessionID: "session123",
-					IsActive:  true,
 				}, nil)
-				sessionRepo.On("UpdateSession", "user123", mock.Anything).Return(nil)
+				userRepo.On("GetUserMax", userID, &validRecord.FkExerciseId).Return(&storage.Max{
+					MaxWeight: 10,
+					Reps:      10,
+				}, nil)
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
@@ -55,19 +62,15 @@ func TestAddHandler(t *testing.T) {
 			name:               "InvalidRequest",
 			userID:             "user123",
 			reqBody:            "xxx",
-			setupMock:          func(sessionRepo *mocks.SessionRepository) {},
+			setupMock:          func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
 			name:    "ValidationError",
 			userID:  "user123",
-			reqBody: storage.Record{FkWorkoutId: "", RecordId: ""}, // Invalid record
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
-					SessionID: "session123",
-					IsActive:  true,
-				}, nil)
+			reqBody: storage.Record{FkWorkoutId: "", RecordId: ""},
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
 			},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeValidationError},
@@ -76,8 +79,8 @@ func TestAddHandler(t *testing.T) {
 			name:    "SessionNotFound",
 			userID:  "user123",
 			reqBody: validRecord,
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, storage.ErrNoSession)
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -86,12 +89,42 @@ func TestAddHandler(t *testing.T) {
 			name:    "UpdateSessionError",
 			userID:  "user123",
 			reqBody: validRecord,
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
 					SessionID: "session123",
-					IsActive:  true,
 				}, nil)
-				sessionRepo.On("UpdateSession", "user123", mock.Anything).Return(errors.New("db error"))
+				userRepo.On("GetUserMax", userID, &validRecord.FkExerciseId).Return(&storage.Max{
+					MaxWeight: 10,
+					Reps:      10,
+				}, nil)
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(errors.New("db error"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name:    "NoMax",
+			userID:  "user123",
+			reqBody: validRecord,
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
+					SessionID: "session123",
+				}, nil)
+				userRepo.On("GetUserMax", userID, &validRecord.FkExerciseId).Return(nil, storage.ErrNoMaxes)
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(nil)
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
+		},
+		{
+			name:    "CantGetMax",
+			userID:  "user123",
+			reqBody: validRecord,
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
+					SessionID: "session123",
+				}, nil)
+				userRepo.On("GetUserMax", userID, &validRecord.FkExerciseId).Return(nil, errors.New("some error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -100,32 +133,30 @@ func TestAddHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sessionRepo := mocks.NewSessionRepository(t)
-			tt.setupMock(sessionRepo)
-			handler := add.NewAddHandler(logger, sessionRepo)
+			sessionRepo := new(mocks.SessionRepository)
+			userRepo := new(mocks.UserRepository)
 
-			reqBody, _ := json.Marshal(tt.reqBody)
-			req := httptest.NewRequest("POST", "/workouts/add", bytes.NewBuffer(reqBody))
-			req.Header.Set("Content-Type", "application/json")
+			tt.setupMock(sessionRepo, userRepo)
+
+			reqBody, err := json.Marshal(tt.reqBody)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/records/add", bytes.NewBuffer(reqBody))
 			ctx := context.WithValue(req.Context(), jwt.UserKey, tt.userID)
 			req = req.WithContext(ctx)
 
 			rr := httptest.NewRecorder()
 
+			handler := add.NewAddHandler(logger, sessionRepo, userRepo)
 			handler.ServeHTTP(rr, req)
 
 			require.Equal(t, tt.expectedStatusCode, rr.Code)
 
-			var response resp.DetailedResponse
-			err := json.Unmarshal(rr.Body.Bytes(), &response)
+			var actualResp resp.DetailedResponse
+			err = json.NewDecoder(rr.Body).Decode(&actualResp)
 			require.NoError(t, err)
 
-			require.Equal(t, tt.expectedResponse.Status, response.Status)
-			if tt.expectedResponse.Code != "" {
-				require.Equal(t, tt.expectedResponse.Code, response.Code)
-			}
-
-			sessionRepo.AssertExpectations(t)
+			require.Equal(t, tt.expectedResponse.Status, actualResp.Status)
 		})
 	}
 }

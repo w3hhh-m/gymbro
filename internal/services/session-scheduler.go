@@ -9,16 +9,16 @@ import (
 
 type SessionScheduler struct {
 	sessionRepo       storage.SessionRepository
-	woRepo            storage.WorkoutRepository
+	workoutRepo       storage.WorkoutRepository
 	checkInterval     time.Duration
 	inactivityTimeout time.Duration
 	log               *slog.Logger
 }
 
-func NewSessionScheduler(sessionRepo storage.SessionRepository, woRepo storage.WorkoutRepository, cfg *config.Config, log *slog.Logger) *SessionScheduler {
+func NewSessionScheduler(sessionRepo storage.SessionRepository, workoutRepo storage.WorkoutRepository, cfg *config.Config, log *slog.Logger) *SessionScheduler {
 	return &SessionScheduler{
 		sessionRepo:       sessionRepo,
-		woRepo:            woRepo,
+		workoutRepo:       workoutRepo,
 		checkInterval:     cfg.SchedulerInterval,
 		inactivityTimeout: cfg.SessionLifetime,
 		log:               log,
@@ -41,23 +41,22 @@ func (s *SessionScheduler) Start() {
 func (s *SessionScheduler) processInactiveSessions(inactivityDuration time.Duration) int {
 	sessions, err := s.sessionRepo.GetAllSessions()
 	if err != nil {
-		s.log.Error("Scheduler cant get sessions", slog.Any("error", err))
+		s.log.Error("Scheduler cant GET sessions", slog.Any("error", err))
 	}
 
 	endedSessions := 0
 
 	for _, session := range sessions {
 		if session != nil && time.Since(session.LastUpdated) > inactivityDuration {
-			session.IsActive = false
 
-			err := s.woRepo.SaveWorkout(session)
+			err := s.workoutRepo.SaveWorkout(session)
 			if err != nil {
-				s.log.Error("Scheduler cant save workout", slog.Any("error", err))
+				s.log.Error("Scheduler cant SAVE workout", slog.Any("error", err))
 				continue
 			}
-			err = s.sessionRepo.DeleteSession(session.UserID)
+			err = s.sessionRepo.DeleteSession(&session.UserID)
 			if err != nil {
-				s.log.Error("Scheduler cant delete session", slog.Any("error", err))
+				s.log.Error("Scheduler cant DELETE session", slog.Any("error", err))
 			}
 			endedSessions++
 		}

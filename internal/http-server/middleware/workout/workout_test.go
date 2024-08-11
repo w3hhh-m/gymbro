@@ -21,6 +21,11 @@ import (
 func TestWithActiveSessionCheck(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
+	userIDValue := "user123"
+	extraUserIDValue := "user456"
+	userID := &userIDValue
+	extraUserID := &extraUserIDValue
+
 	tests := []struct {
 		name               string
 		setupMock          func(sessionRepo *mocks.SessionRepository)
@@ -34,9 +39,8 @@ func TestWithActiveSessionCheck(t *testing.T) {
 				activeSession := &storage.WorkoutSession{
 					SessionID: "session123",
 					UserID:    "user123",
-					IsActive:  true,
 				}
-				sessionRepo.On("GetSession", "user123").Return(activeSession, nil)
+				sessionRepo.On("GetSession", userID).Return(activeSession, nil)
 			},
 			userID:             "user123",
 			expectedStatusCode: http.StatusOK,
@@ -45,7 +49,7 @@ func TestWithActiveSessionCheck(t *testing.T) {
 		{
 			name: "NoActiveSession",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user456").Return(nil, storage.ErrNoSession)
+				sessionRepo.On("GetSession", extraUserID).Return(nil, storage.ErrNoSession)
 			},
 			userID:             "user456",
 			expectedStatusCode: http.StatusForbidden,
@@ -54,9 +58,9 @@ func TestWithActiveSessionCheck(t *testing.T) {
 		{
 			name: "SessionRepoError",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user789").Return(nil, errors.New("db error"))
+				sessionRepo.On("GetSession", extraUserID).Return(nil, errors.New("db error"))
 			},
-			userID:             "user789",
+			userID:             "user456",
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
 		},

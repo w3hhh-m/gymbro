@@ -9,33 +9,26 @@ import (
 	"net/http"
 )
 
-// NewLogoutHandler returns a handler function to initiate user logout.
+// NewLogoutHandler creates an HTTP handler for user logout.
+// It clears the JWT cookie, logs the event, and redirects the user to the home page.
 func NewLogoutHandler(log *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.users.logout.New"
-		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
+		userID := jwt.GetUserIDFromContext(r.Context())
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())), slog.String("user_id", userID))
 
-		// Retrieve the user ID from the context.
-		uid := jwt.GetUserIDFromContext(r.Context())
-
-		// Delete the JWT cookie by setting its MaxAge to -1.
 		http.SetCookie(w, &http.Cookie{
 			HttpOnly: true,
 			Path:     "/",
-			MaxAge:   -1, // Delete the cookie.
-			// Uncomment below for HTTPS:
-			// Secure: true,
-			Name:  "jwt",
-			Value: "",
+			MaxAge:   -1,
+			Name:     "jwt",
+			Value:    "",
 		})
 
-		// Log the user logout event.
-		log.Debug("User logged out", slog.String("uid", uid))
+		log.Debug("User logged out")
 
-		// Send a successful logout response.
+		render.Status(r, http.StatusOK)
 		render.JSON(w, r, resp.OK())
-
-		// Redirect to the home page.
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }

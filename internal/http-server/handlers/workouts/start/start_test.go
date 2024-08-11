@@ -22,29 +22,42 @@ import (
 func TestStartHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
+	userIDValue := "user123"
+	userID := &userIDValue
+
 	tests := []struct {
 		name               string
 		userID             string
-		setupMock          func(sessionRepo *mocks.SessionRepository)
+		setupMock          func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository)
 		expectedStatusCode int
 		expectedResponse   resp.DetailedResponse
 	}{
 		{
 			name:   "Success",
 			userID: "user123",
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
-				sessionRepo.On("CreateSession", mock.AnythingOfType("storage.WorkoutSession")).Return(nil)
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, storage.ErrNoSession)
+				sessionRepo.On("CreateSession", mock.AnythingOfType("*storage.WorkoutSession")).Return(nil)
+				userRepo.On("ChangeStatus", userID, true).Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 		{
+			name:   "GetSessionError",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, errors.New("db error"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
 			name:   "CreateSessionError",
 			userID: "user123",
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(nil, storage.ErrNoSession)
-				sessionRepo.On("CreateSession", mock.AnythingOfType("storage.WorkoutSession")).Return(errors.New("db error"))
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, storage.ErrNoSession)
+				sessionRepo.On("CreateSession", mock.AnythingOfType("*storage.WorkoutSession")).Return(errors.New("db error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -52,27 +65,38 @@ func TestStartHandler(t *testing.T) {
 		{
 			name:   "UserHasActiveSession",
 			userID: "user123",
-			setupMock: func(sessionRepo *mocks.SessionRepository) {
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
 				activeSession := &storage.WorkoutSession{
 					SessionID:   "session123",
 					UserID:      "user123",
 					StartTime:   time.Now(),
 					LastUpdated: time.Now(),
-					IsActive:    true,
 				}
-				sessionRepo.On("GetSession", "user123").Return(activeSession, nil)
+				sessionRepo.On("GetSession", userID).Return(activeSession, nil)
 			},
 			expectedStatusCode: http.StatusConflict,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeActiveWorkout},
+		},
+		{
+			name:   "UserStatusError",
+			userID: "user123",
+			setupMock: func(sessionRepo *mocks.SessionRepository, userRepo *mocks.UserRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, storage.ErrNoSession)
+				sessionRepo.On("CreateSession", mock.AnythingOfType("*storage.WorkoutSession")).Return(nil)
+				userRepo.On("ChangeStatus", userID, true).Return(errors.New("user status error"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sessionRepo := mocks.NewSessionRepository(t)
-			tt.setupMock(sessionRepo)
+			userRepo := mocks.NewUserRepository(t)
+			tt.setupMock(sessionRepo, userRepo)
 
-			handler := start.NewStartHandler(logger, sessionRepo)
+			handler := start.NewStartHandler(logger, sessionRepo, userRepo)
 
 			req := httptest.NewRequest("POST", "/workouts/start", nil)
 			ctx := context.WithValue(req.Context(), jwt.UserKey, tt.userID)

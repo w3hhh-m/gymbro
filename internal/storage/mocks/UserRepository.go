@@ -13,8 +13,26 @@ type UserRepository struct {
 	mock.Mock
 }
 
+// ChangeStatus provides a mock function with given fields: _a0, _a1
+func (_m *UserRepository) ChangeStatus(_a0 *string, _a1 bool) error {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ChangeStatus")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*string, bool) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetUserByEmail provides a mock function with given fields: _a0
-func (_m *UserRepository) GetUserByEmail(_a0 string) (*storage.User, error) {
+func (_m *UserRepository) GetUserByEmail(_a0 *string) (*storage.User, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -23,10 +41,10 @@ func (_m *UserRepository) GetUserByEmail(_a0 string) (*storage.User, error) {
 
 	var r0 *storage.User
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*storage.User, error)); ok {
+	if rf, ok := ret.Get(0).(func(*string) (*storage.User, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(string) *storage.User); ok {
+	if rf, ok := ret.Get(0).(func(*string) *storage.User); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -34,7 +52,7 @@ func (_m *UserRepository) GetUserByEmail(_a0 string) (*storage.User, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
@@ -44,7 +62,7 @@ func (_m *UserRepository) GetUserByEmail(_a0 string) (*storage.User, error) {
 }
 
 // GetUserByID provides a mock function with given fields: _a0
-func (_m *UserRepository) GetUserByID(_a0 string) (*storage.User, error) {
+func (_m *UserRepository) GetUserByID(_a0 *string) (*storage.User, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -53,10 +71,10 @@ func (_m *UserRepository) GetUserByID(_a0 string) (*storage.User, error) {
 
 	var r0 *storage.User
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*storage.User, error)); ok {
+	if rf, ok := ret.Get(0).(func(*string) (*storage.User, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(string) *storage.User); ok {
+	if rf, ok := ret.Get(0).(func(*string) *storage.User); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -64,7 +82,67 @@ func (_m *UserRepository) GetUserByID(_a0 string) (*storage.User, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetUserMax provides a mock function with given fields: _a0, _a1
+func (_m *UserRepository) GetUserMax(_a0 *string, _a1 *int) (*storage.Max, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserMax")
+	}
+
+	var r0 *storage.Max
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*string, *int) (*storage.Max, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(*string, *int) *storage.Max); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*storage.Max)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*string, *int) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetUserMaxes provides a mock function with given fields: _a0
+func (_m *UserRepository) GetUserMaxes(_a0 *string) ([]*storage.Max, error) {
+	ret := _m.Called(_a0)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserMaxes")
+	}
+
+	var r0 []*storage.Max
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*string) ([]*storage.Max, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(*string) []*storage.Max); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*storage.Max)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
@@ -74,7 +152,7 @@ func (_m *UserRepository) GetUserByID(_a0 string) (*storage.User, error) {
 }
 
 // RegisterNewUser provides a mock function with given fields: _a0
-func (_m *UserRepository) RegisterNewUser(_a0 storage.User) (*string, error) {
+func (_m *UserRepository) RegisterNewUser(_a0 *storage.User) (*string, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -83,10 +161,10 @@ func (_m *UserRepository) RegisterNewUser(_a0 storage.User) (*string, error) {
 
 	var r0 *string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(storage.User) (*string, error)); ok {
+	if rf, ok := ret.Get(0).(func(*storage.User) (*string, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(storage.User) *string); ok {
+	if rf, ok := ret.Get(0).(func(*storage.User) *string); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -94,13 +172,31 @@ func (_m *UserRepository) RegisterNewUser(_a0 storage.User) (*string, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(storage.User) error); ok {
+	if rf, ok := ret.Get(1).(func(*storage.User) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+
+// SetUserMax provides a mock function with given fields: _a0, _a1
+func (_m *UserRepository) SetUserMax(_a0 *string, _a1 *storage.Max) error {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetUserMax")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*string, *storage.Max) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // NewUserRepository creates a new instance of UserRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -20,7 +20,10 @@ import (
 
 func TestWithJWTAuth(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
-	cfg := &config.Config{SecretKey: "test_secret_key"}
+	cfg := &config.Config{JWTCfg: config.JWTCfg{SecretKey: "test"}}
+
+	userIDValue := "user123"
+	userID := &userIDValue
 
 	tests := []struct {
 		name               string
@@ -40,7 +43,7 @@ func TestWithJWTAuth(t *testing.T) {
 				return x
 			}(),
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByID", "user123").Return(&storage.User{UserId: "user123"}, nil)
+				userRepo.On("GetUserByID", userID).Return(&storage.User{UserId: "user123"}, nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
@@ -75,7 +78,7 @@ func TestWithJWTAuth(t *testing.T) {
 				return tokenString
 			}(),
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByID", "user123").Return(nil, errors.New("user not found"))
+				userRepo.On("GetUserByID", userID).Return(nil, errors.New("user not found"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},

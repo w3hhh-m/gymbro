@@ -13,7 +13,8 @@ import (
 	"net/http"
 )
 
-// WithJWTAuth middleware checks for a valid JWT token and adds the user ID to the context.
+// WithJWTAuth adds user authentication to requests by validating JWT tokens.
+// It verifies the token, retrieves the user, and injects the user ID into the request context.
 func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,6 @@ func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, cfg *config.
 			reqID := middleware.GetReqID(r.Context())
 			log = log.With(slog.String("op", op), slog.Any("request_id", reqID))
 
-			// Retrieve JWT token from the request
 			tokenString := jwtlib.GetTokenFromRequest(r)
 			if tokenString == "" {
 				log.Debug("User is not authenticated")
@@ -30,7 +30,6 @@ func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, cfg *config.
 				return
 			}
 
-			// Validate the JWT token
 			token, err := jwtlib.ValidateJWT(tokenString, cfg.SecretKey)
 			if err != nil {
 				log.Warn("Failed to validate JWT", slog.Any("error", err))
@@ -45,7 +44,6 @@ func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, cfg *config.
 				return
 			}
 
-			// Extract claims from the token
 			claims, ok := token.Claims.(jwt.MapClaims)
 			if !ok {
 				log.Warn("Failed to parse JWT claims")
@@ -54,18 +52,16 @@ func WithJWTAuth(log *slog.Logger, userRepo storage.UserRepository, cfg *config.
 				return
 			}
 
-			// Retrieve user from the database using the user ID from claims
 			userID := claims["uid"].(string)
-			u, err := userRepo.GetUserByID(userID)
+			user, err := userRepo.GetUserByID(&userID)
 			if err != nil {
-				log.Error("Failed to get user", slog.Any("error", err), slog.String("uid", userID))
+				log.Error("Failed to GET user", slog.Any("error", err), slog.String("user_id", userID))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 				return
 			}
 
-			// Add user ID to context and proceed to the next handler
-			ctx := context.WithValue(r.Context(), jwtlib.UserKey, u.UserId)
+			ctx := context.WithValue(r.Context(), jwtlib.UserKey, user.UserId)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

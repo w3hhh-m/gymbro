@@ -13,7 +13,6 @@ type contextKey string
 
 const UserKey contextKey = "uid"
 
-// NewToken generates a new JWT token for a user with a specified duration and secret key
 func NewToken(usr storage.User, duration time.Duration, secret string) (string, error) {
 	claims := jwt.MapClaims{
 		"uid":      usr.UserId,
@@ -24,7 +23,6 @@ func NewToken(usr storage.User, duration time.Duration, secret string) (string, 
 	return token.SignedString([]byte(secret))
 }
 
-// GetTokenFromRequest extracts the JWT token from the Authorization header, query parameters, or cookies
 func GetTokenFromRequest(r *http.Request) string {
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		return authHeader
@@ -38,10 +36,8 @@ func GetTokenFromRequest(r *http.Request) string {
 	return ""
 }
 
-// ValidateJWT parses and validates the JWT token using the provided secret
 func ValidateJWT(tokenString, secret string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token's signing method matches the expected HMAC method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -49,7 +45,6 @@ func ValidateJWT(tokenString, secret string) (*jwt.Token, error) {
 	})
 }
 
-// GetUserIDFromContext retrieves the user ID from the context
 func GetUserIDFromContext(ctx context.Context) string {
 	if userID, ok := ctx.Value(UserKey).(string); ok {
 		return userID

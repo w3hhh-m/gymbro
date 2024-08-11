@@ -1,10 +1,23 @@
-ALTER TABLE Clans
-DROP CONSTRAINT fk_owner_id;
+drop table if exists exercisemusclegroups cascade;
 
-DROP TABLE IF EXISTS Records;
-DROP TABLE IF EXISTS Exercises;
-DROP TABLE IF EXISTS Workouts;
-DROP TABLE IF EXISTS Subscriptions;
-DROP TABLE IF EXISTS Users;
-DROP TABLE IF EXISTS Gyms;
-DROP TABLE IF EXISTS Clans;
+drop table if exists musclegroups cascade;
+
+alter table clans
+    drop constraint if exists fk_owner_id cascade;
+
+drop table if exists userexercisemaxweights cascade;
+
+drop table if exists records cascade;
+
+drop table if exists exercises cascade;
+
+drop table if exists workouts cascade;
+
+drop table if exists subscriptions cascade;
+
+drop table if exists users cascade;
+
+drop table if exists gyms cascade;
+
+drop table if exists clans cascade;
+

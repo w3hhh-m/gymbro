@@ -23,6 +23,9 @@ import (
 func TestGetWorkoutHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
+	workoutIDValue := "workout123"
+	workoutID := &workoutIDValue
+
 	tests := []struct {
 		name               string
 		userID             string
@@ -36,7 +39,7 @@ func TestGetWorkoutHandler(t *testing.T) {
 			userID:    "user123",
 			workoutID: "workout123",
 			setupMock: func(woRepo *mocks.WorkoutRepository) {
-				woRepo.On("GetWorkout", "workout123").Return(&storage.WorkoutWithRecords{WorkoutID: "workout123", UserID: "user123"}, nil)
+				woRepo.On("GetWorkout", workoutID).Return(&storage.WorkoutWithRecords{WorkoutID: "workout123", UserID: "user123"}, nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK, Code: resp.StatusOK},
@@ -46,7 +49,7 @@ func TestGetWorkoutHandler(t *testing.T) {
 			userID:    "user123",
 			workoutID: "workout123",
 			setupMock: func(woRepo *mocks.WorkoutRepository) {
-				woRepo.On("GetWorkout", "workout123").Return(nil, storage.ErrWorkoutNotFound)
+				woRepo.On("GetWorkout", workoutID).Return(nil, storage.ErrWorkoutNotFound)
 			},
 			expectedStatusCode: http.StatusNotFound,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeNotFound},
@@ -56,7 +59,7 @@ func TestGetWorkoutHandler(t *testing.T) {
 			userID:    "user123",
 			workoutID: "workout123",
 			setupMock: func(woRepo *mocks.WorkoutRepository) {
-				woRepo.On("GetWorkout", "workout123").Return(nil, errors.New("db error"))
+				woRepo.On("GetWorkout", workoutID).Return(nil, errors.New("db error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -66,7 +69,7 @@ func TestGetWorkoutHandler(t *testing.T) {
 			userID:    "user456",
 			workoutID: "workout123",
 			setupMock: func(woRepo *mocks.WorkoutRepository) {
-				woRepo.On("GetWorkout", "workout123").Return(&storage.WorkoutWithRecords{WorkoutID: "workout123", UserID: "user123"}, nil)
+				woRepo.On("GetWorkout", workoutID).Return(&storage.WorkoutWithRecords{WorkoutID: "workout123", UserID: "user123"}, nil)
 			},
 			expectedStatusCode: http.StatusForbidden,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeForbidden},

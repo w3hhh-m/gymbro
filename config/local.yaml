@@ -1,8 +1,18 @@
-env: "local" #defining environment (local, dev, prod ...)
-jwt_lifetime: 24h
-session_lifetime: 1m
-scheduler_interval: 20s
-http_server:
+#storage_path in .env
+env: "local"
+http_server_cfg:
   address: "localhost:8888"
-  timeout: 5s #timeout for reading request and sending response
-  idle_timeout: 60s #timeout for connection with client
+  timeout: 5s
+  idle_timeout: 60s
+sessions_cfg:
+  session_lifetime: 2h
+  scheduler_interval: 30m
+jwt_cfg:
+  jwt_lifetime: 24h
+  #secret_key in .env
+oauth_cfg:
+  #google_key in .env
+  #google_secret in .env
+redis_cfg:
+  #redis_path in .env
+  #redis_password in .env

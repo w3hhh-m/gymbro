@@ -9,37 +9,36 @@ import (
 	"net/http"
 )
 
-// WorkoutsHandlerFactory defines the interface for creating workout-related handlers.
 type WorkoutsHandlerFactory interface {
 	CreateStartHandler() http.HandlerFunc
 	CreateEndHandler() http.HandlerFunc
 	CreateGetWorkoutHandler() http.HandlerFunc
 }
 
-// WorkoutHandlerFactory implements the WorkoutsHandlerFactory interface.
 type WorkoutHandlerFactory struct {
-	log   *slog.Logger
-	wrepo storage.WorkoutRepository
-	srepo storage.SessionRepository
+	log         *slog.Logger
+	workoutRepo storage.WorkoutRepository
+	sessionRepo storage.SessionRepository
+	userRepo    storage.UserRepository
 }
 
-// NewWorkoutHandlerFactory creates a new instance of WorkoutHandlerFactory.
-func NewWorkoutHandlerFactory(log *slog.Logger, wrepo storage.WorkoutRepository, srepo storage.SessionRepository) *WorkoutHandlerFactory {
+func NewWorkoutHandlerFactory(log *slog.Logger, workoutRepo storage.WorkoutRepository, sessionRepo storage.SessionRepository, userRepo storage.UserRepository) *WorkoutHandlerFactory {
 	return &WorkoutHandlerFactory{
-		log:   log,
-		wrepo: wrepo,
-		srepo: srepo,
+		log:         log,
+		workoutRepo: workoutRepo,
+		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
 	}
 }
 
 func (f *WorkoutHandlerFactory) CreateStartHandler() http.HandlerFunc {
-	return start.NewStartHandler(f.log, f.srepo)
+	return start.NewStartHandler(f.log, f.sessionRepo, f.userRepo)
 }
 
 func (f *WorkoutHandlerFactory) CreateEndHandler() http.HandlerFunc {
-	return end.NewEndHandler(f.log, f.srepo, f.wrepo)
+	return end.NewEndHandler(f.log, f.sessionRepo, f.workoutRepo, f.userRepo)
 }
 
 func (f *WorkoutHandlerFactory) CreateGetWorkoutHandler() http.HandlerFunc {
-	return getwo.NewGetWorkoutHandler(f.log, f.wrepo)
+	return getwo.NewGetWorkoutHandler(f.log, f.workoutRepo)
 }

@@ -6,16 +6,13 @@ import (
 	"time"
 )
 
-// Common errors for storages
-
 var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrUserExists      = errors.New("users already exists")
 	ErrWorkoutNotFound = errors.New("workout not found")
 	ErrNoSession       = errors.New("no session")
+	ErrNoMaxes         = errors.New("no maxes")
 )
-
-// Structures
 
 type WorkoutWithRecords struct {
 	UserID    string    `json:"user_id"`
@@ -28,10 +25,11 @@ type WorkoutWithRecords struct {
 
 type Record struct {
 	RecordId     string `json:"record_id"`
-	FkWorkoutId  string `json:"fk_workout_id" validate:"required"`
+	FkWorkoutId  string `json:"fk_workout_id"`
 	FkExerciseId int    `json:"fk_exercise_id" validate:"required"`
 	Reps         int    `json:"reps" validate:"required,gte=1"`
 	Weight       int    `json:"weight" validate:"required,gte=1"`
+	Points       int    `json:"points"`
 }
 
 type Subscription struct {
@@ -49,12 +47,13 @@ type Workout struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
 	Points    int       `json:"points"`
-	IsActive  bool      `json:"is_active"`
 }
 
 type Exercise struct {
-	ExerciseId int    `json:"exercise_id"`
-	Name       string `json:"name"`
+	ExerciseId  int    `json:"exercise_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Picture     string `json:"picture"`
 }
 
 type User struct {
@@ -67,6 +66,8 @@ type User struct {
 	GoogleId    string    `json:"google_id"`
 	FkClanId    string    `json:"fk_clan_id"`
 	FkGymId     int       `json:"fk_gym_id"`
+	IsActive    bool      `json:"is_active"`
+	LastActive  time.Time `json:"last_active"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -91,33 +92,41 @@ type WorkoutSession struct {
 	SessionID   string    `json:"session_id"`
 	StartTime   time.Time `json:"start_time"`
 	LastUpdated time.Time `json:"last_updated"`
-	IsActive    bool      `json:"is_active"`
 	Records     []Record  `json:"records"`
 	Points      int       `json:"points"`
 }
 
-// Interfaces
+type Max struct {
+	UserID     string `json:"user_id"`
+	ExerciseId int    `json:"exercise_id"`
+	MaxWeight  int    `json:"max_weight"`
+	Reps       int    `json:"reps"`
+}
 
 //go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=WorkoutRepository --output=./mocks
 type WorkoutRepository interface {
-	GetWorkout(string) (*WorkoutWithRecords, error)
+	GetWorkout(*string) (*WorkoutWithRecords, error)
 	SaveWorkout(*WorkoutSession) error
 }
 
 //go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=SessionRepository --output=./mocks
 type SessionRepository interface {
-	CreateSession(WorkoutSession) error
-	UpdateSession(string, *WorkoutSession) error
-	DeleteSession(string) error
-	GetSession(string) (*WorkoutSession, error)
+	CreateSession(*WorkoutSession) error
+	UpdateSession(*string, *WorkoutSession) error
+	DeleteSession(*string) error
+	GetSession(*string) (*WorkoutSession, error)
 	GetAllSessions() ([]*WorkoutSession, error)
 }
 
 //go:generate go run github.com/vektra/mockery/v2@v2.43.2 --name=UserRepository --output=./mocks
 type UserRepository interface {
-	GetUserByID(string) (*User, error)
-	GetUserByEmail(string) (*User, error)
-	RegisterNewUser(User) (*string, error)
+	GetUserByID(*string) (*User, error)
+	GetUserByEmail(*string) (*User, error)
+	RegisterNewUser(*User) (*string, error)
+	ChangeStatus(*string, bool) error
+	GetUserMax(*string, *int) (*Max, error)
+	GetUserMaxes(*string) ([]*Max, error)
+	SetUserMax(*string, *Max) error
 }
 
 func GenerateUID() string {

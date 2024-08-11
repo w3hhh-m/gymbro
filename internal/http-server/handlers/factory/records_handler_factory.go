@@ -3,41 +3,34 @@ package factory
 import (
 	"GYMBRO/internal/http-server/handlers/records/add"
 	"GYMBRO/internal/http-server/handlers/records/delete"
-	"GYMBRO/internal/http-server/handlers/records/update"
 	"GYMBRO/internal/storage"
 	"log/slog"
 	"net/http"
 )
 
-// RecordsHandlerFactory defines the interface for creating record-related handlers.
 type RecordsHandlerFactory interface {
 	CreateAddHandler() http.HandlerFunc
 	CreateDeleteHandler() http.HandlerFunc
-	CreateUpdateHandler() http.HandlerFunc
 }
 
-// RecordHandlerFactory implements the RecordsHandlerFactory interface.
 type RecordHandlerFactory struct {
-	log   *slog.Logger
-	srepo storage.SessionRepository
+	log         *slog.Logger
+	sessionRepo storage.SessionRepository
+	userRepo    storage.UserRepository
 }
 
-// NewRecordHandlerFactory creates a new instance of RecordHandlerFactory.
-func NewRecordHandlerFactory(log *slog.Logger, srepo storage.SessionRepository) *RecordHandlerFactory {
+func NewRecordHandlerFactory(log *slog.Logger, sessionRepo storage.SessionRepository, userRepo storage.UserRepository) *RecordHandlerFactory {
 	return &RecordHandlerFactory{
-		log:   log,
-		srepo: srepo,
+		log:         log,
+		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
 	}
 }
 
 func (f *RecordHandlerFactory) CreateAddHandler() http.HandlerFunc {
-	return add.NewAddHandler(f.log, f.srepo)
+	return add.NewAddHandler(f.log, f.sessionRepo, f.userRepo)
 }
 
 func (f *RecordHandlerFactory) CreateDeleteHandler() http.HandlerFunc {
-	return delete.NewDeleteHandler(f.log, f.srepo)
-}
-
-func (f *RecordHandlerFactory) CreateUpdateHandler() http.HandlerFunc {
-	return update.NewUpdateHandler(f.log, f.srepo)
+	return delete.NewDeleteHandler(f.log, f.sessionRepo)
 }

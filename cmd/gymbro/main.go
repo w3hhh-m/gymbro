@@ -17,53 +17,41 @@ import (
 )
 
 func main() {
-	// Load configuration
 	cfg := config.MustLoad()
-
-	// Setup logger
 	log := setupLogger(cfg.Env)
 
 	log.Info("Configuration loaded")
 	log.Info("Logger loaded")
 
-	// Initialize database
 	db, err := postgresql.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("Error initializing storage", slog.Any("error", err))
 		os.Exit(1)
 	}
 	defer db.Close()
-
 	log.Info("Storage loaded")
-
-	// Initialize session manager
 
 	sessionManager, err := redis.New(cfg.RedisPath, cfg.RedisPassword, 0)
 	if err != nil {
 		log.Error("Error initializing session manager", slog.Any("error", err))
 		os.Exit(1)
 	}
-
 	log.Info("Session manager loaded")
 
-	// Setup router
 	router := setupRouter(cfg, log, db, sessionManager)
 
-	// Start scheduler
 	sessionSched := services.NewSessionScheduler(sessionManager, db, cfg, log)
 	sessionSched.Start()
 
-	// Start server
 	startServer(cfg, router, log)
 }
 
-// setupLogger configures and returns a logger based on the environment.
 func setupLogger(env string) *slog.Logger {
 	switch env {
 	case "production":
 		return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	case "local":
-		//got it from https://github.com/dusted-go/logging
+		// got it from https://github.com/dusted-go/logging
 		prettyHandler := prettylogger.NewHandler(&slog.HandlerOptions{
 			Level:       slog.LevelDebug,
 			AddSource:   false,
@@ -75,7 +63,6 @@ func setupLogger(env string) *slog.Logger {
 	}
 }
 
-// setupRouter configures and returns the router with all necessary routes and middleware.
 func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, sm *redis.RedisStorage) *chi.Mux {
 	handlerFactory := factory.NewConcreteHandlerFactory(log, db, db, sm, cfg)
 
@@ -94,19 +81,17 @@ func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, s
 
 	oauth.NewOAuth(cfg)
 
-	// Protected routes
 	router.Group(func(r chi.Router) {
 		r.Use(middlewareHandlerFactory.CreateJWTAuthHandler())
-
 		r.Route("/workouts", func(r chi.Router) {
 			r.Post("/start", workoutHandlerFactory.CreateStartHandler())
 			r.Get("/{workoutID}", workoutHandlerFactory.CreateGetWorkoutHandler())
+
 			r.Group(func(r chi.Router) {
 				r.Use(middlewareHandlerFactory.CreateActiveSessionHandler())
 				r.Post("/end", workoutHandlerFactory.CreateEndHandler())
 				r.Route("/records", func(r chi.Router) {
 					r.Post("/add", recordHandlerFactory.CreateAddHandler())
-					r.Put("/{recordID}", recordHandlerFactory.CreateUpdateHandler())
 					r.Delete("/{recordID}", recordHandlerFactory.CreateDeleteHandler())
 				})
 			})
@@ -128,7 +113,6 @@ func setupRouter(cfg *config.Config, log *slog.Logger, db *postgresql.Storage, s
 	return router
 }
 
-// startServer configures and starts the HTTP server.
 func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) {
 	srv := http.Server{
 		Addr:         cfg.Address,

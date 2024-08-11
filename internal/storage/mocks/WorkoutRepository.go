@@ -14,7 +14,7 @@ type WorkoutRepository struct {
 }
 
 // GetWorkout provides a mock function with given fields: _a0
-func (_m *WorkoutRepository) GetWorkout(_a0 string) (*storage.WorkoutWithRecords, error) {
+func (_m *WorkoutRepository) GetWorkout(_a0 *string) (*storage.WorkoutWithRecords, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -23,10 +23,10 @@ func (_m *WorkoutRepository) GetWorkout(_a0 string) (*storage.WorkoutWithRecords
 
 	var r0 *storage.WorkoutWithRecords
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*storage.WorkoutWithRecords, error)); ok {
+	if rf, ok := ret.Get(0).(func(*string) (*storage.WorkoutWithRecords, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(string) *storage.WorkoutWithRecords); ok {
+	if rf, ok := ret.Get(0).(func(*string) *storage.WorkoutWithRecords); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -34,7 +34,7 @@ func (_m *WorkoutRepository) GetWorkout(_a0 string) (*storage.WorkoutWithRecords
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)

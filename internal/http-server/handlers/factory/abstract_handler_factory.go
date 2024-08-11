@@ -6,7 +6,6 @@ import (
 	"log/slog"
 )
 
-// AbstractHandlerFactory defines the interface for the handler factory.
 type AbstractHandlerFactory interface {
 	GetMiddlewaresHandlerFactory() MiddlewaresHandlerFactory
 	GetUsersHandlerFactory() UsersHandlerFactory
@@ -14,38 +13,36 @@ type AbstractHandlerFactory interface {
 	GetRecordsHandlerFactory() RecordsHandlerFactory
 }
 
-// ConcreteHandlerFactory implements the AbstractHandlerFactory interface.
 type ConcreteHandlerFactory struct {
-	log   *slog.Logger
-	urepo storage.UserRepository
-	wrepo storage.WorkoutRepository
-	srepo storage.SessionRepository
-	cfg   *config.Config
+	log         *slog.Logger
+	userRepo    storage.UserRepository
+	workoutRepo storage.WorkoutRepository
+	sessionRepo storage.SessionRepository
+	cfg         *config.Config
 }
 
-// NewConcreteHandlerFactory creates a new instance of ConcreteHandlerFactory.
-func NewConcreteHandlerFactory(log *slog.Logger, urepo storage.UserRepository, wrepo storage.WorkoutRepository, srepo storage.SessionRepository, cfg *config.Config) *ConcreteHandlerFactory {
+func NewConcreteHandlerFactory(log *slog.Logger, userRepo storage.UserRepository, workoutRepo storage.WorkoutRepository, sessionRepo storage.SessionRepository, cfg *config.Config) *ConcreteHandlerFactory {
 	return &ConcreteHandlerFactory{
-		log:   log,
-		urepo: urepo,
-		wrepo: wrepo,
-		cfg:   cfg,
-		srepo: srepo,
+		log:         log,
+		userRepo:    userRepo,
+		workoutRepo: workoutRepo,
+		sessionRepo: sessionRepo,
+		cfg:         cfg,
 	}
 }
 
 func (f *ConcreteHandlerFactory) GetMiddlewaresHandlerFactory() MiddlewaresHandlerFactory {
-	return NewMiddlewareHandlerFactory(f.log, f.urepo, f.srepo, f.cfg)
+	return NewMiddlewareHandlerFactory(f.log, f.userRepo, f.sessionRepo, f.cfg)
 }
 
 func (f *ConcreteHandlerFactory) GetUsersHandlerFactory() UsersHandlerFactory {
-	return NewUserHandlerFactory(f.log, f.urepo, f.cfg)
+	return NewUserHandlerFactory(f.log, f.userRepo, f.cfg)
 }
 
 func (f *ConcreteHandlerFactory) GetWorkoutsHandlerFactory() WorkoutsHandlerFactory {
-	return NewWorkoutHandlerFactory(f.log, f.wrepo, f.srepo)
+	return NewWorkoutHandlerFactory(f.log, f.workoutRepo, f.sessionRepo, f.userRepo)
 }
 
 func (f *ConcreteHandlerFactory) GetRecordsHandlerFactory() RecordsHandlerFactory {
-	return NewRecordHandlerFactory(f.log, f.srepo)
+	return NewRecordHandlerFactory(f.log, f.sessionRepo, f.userRepo)
 }

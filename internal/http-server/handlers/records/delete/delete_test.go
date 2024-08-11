@@ -38,6 +38,9 @@ func TestDeleteHandler(t *testing.T) {
 		Weight:       50,
 	}
 
+	userIDValue := "user123"
+	userID := &userIDValue
+
 	tests := []struct {
 		name               string
 		userID             string
@@ -51,13 +54,12 @@ func TestDeleteHandler(t *testing.T) {
 			userID:   "user123",
 			recordID: "record1",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
 					SessionID: "session123",
-					IsActive:  true,
 					Records:   []storage.Record{record1, record2},
 					Points:    1000,
 				}, nil)
-				sessionRepo.On("UpdateSession", "user123", mock.Anything).Return(nil)
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
@@ -67,9 +69,8 @@ func TestDeleteHandler(t *testing.T) {
 			userID:   "user123",
 			recordID: "nonexistentRecord",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
 					SessionID: "session123",
-					IsActive:  true,
 					Records:   []storage.Record{record1, record2},
 					Points:    1000,
 				}, nil)
@@ -82,7 +83,7 @@ func TestDeleteHandler(t *testing.T) {
 			userID:   "user123",
 			recordID: "record1",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(nil, errors.New("db error"))
+				sessionRepo.On("GetSession", userID).Return(nil, errors.New("db error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
@@ -92,16 +93,54 @@ func TestDeleteHandler(t *testing.T) {
 			userID:   "user123",
 			recordID: "record1",
 			setupMock: func(sessionRepo *mocks.SessionRepository) {
-				sessionRepo.On("GetSession", "user123").Return(&storage.WorkoutSession{
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
 					SessionID: "session123",
-					IsActive:  true,
 					Records:   []storage.Record{record1, record2},
 					Points:    1000,
 				}, nil)
-				sessionRepo.On("UpdateSession", "user123", mock.Anything).Return(errors.New("db error"))
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(errors.New("db error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name:     "NoActiveSession",
+			userID:   "user123",
+			recordID: "record1",
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				sessionRepo.On("GetSession", userID).Return(nil, storage.ErrNoSession)
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name:     "EmptyRecords",
+			userID:   "user123",
+			recordID: "record1",
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
+					SessionID: "session123",
+					Records:   []storage.Record{},
+					Points:    1000,
+				}, nil)
+			},
+			expectedStatusCode: http.StatusNotFound,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeNotFound},
+		},
+		{
+			name:     "DeleteSingleRecord",
+			userID:   "user123",
+			recordID: "record1",
+			setupMock: func(sessionRepo *mocks.SessionRepository) {
+				sessionRepo.On("GetSession", userID).Return(&storage.WorkoutSession{
+					SessionID: "session123",
+					Records:   []storage.Record{record1},
+					Points:    1000,
+				}, nil)
+				sessionRepo.On("UpdateSession", userID, mock.Anything).Return(nil)
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
 		},
 	}
 

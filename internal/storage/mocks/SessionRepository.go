@@ -14,7 +14,7 @@ type SessionRepository struct {
 }
 
 // CreateSession provides a mock function with given fields: _a0
-func (_m *SessionRepository) CreateSession(_a0 storage.WorkoutSession) error {
+func (_m *SessionRepository) CreateSession(_a0 *storage.WorkoutSession) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -22,7 +22,7 @@ func (_m *SessionRepository) CreateSession(_a0 storage.WorkoutSession) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(storage.WorkoutSession) error); ok {
+	if rf, ok := ret.Get(0).(func(*storage.WorkoutSession) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -32,7 +32,7 @@ func (_m *SessionRepository) CreateSession(_a0 storage.WorkoutSession) error {
 }
 
 // DeleteSession provides a mock function with given fields: _a0
-func (_m *SessionRepository) DeleteSession(_a0 string) error {
+func (_m *SessionRepository) DeleteSession(_a0 *string) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -40,7 +40,7 @@ func (_m *SessionRepository) DeleteSession(_a0 string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
+	if rf, ok := ret.Get(0).(func(*string) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -80,7 +80,7 @@ func (_m *SessionRepository) GetAllSessions() ([]*storage.WorkoutSession, error)
 }
 
 // GetSession provides a mock function with given fields: _a0
-func (_m *SessionRepository) GetSession(_a0 string) (*storage.WorkoutSession, error) {
+func (_m *SessionRepository) GetSession(_a0 *string) (*storage.WorkoutSession, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -89,10 +89,10 @@ func (_m *SessionRepository) GetSession(_a0 string) (*storage.WorkoutSession, er
 
 	var r0 *storage.WorkoutSession
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*storage.WorkoutSession, error)); ok {
+	if rf, ok := ret.Get(0).(func(*string) (*storage.WorkoutSession, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(string) *storage.WorkoutSession); ok {
+	if rf, ok := ret.Get(0).(func(*string) *storage.WorkoutSession); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -100,7 +100,7 @@ func (_m *SessionRepository) GetSession(_a0 string) (*storage.WorkoutSession, er
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
+	if rf, ok := ret.Get(1).(func(*string) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
@@ -110,7 +110,7 @@ func (_m *SessionRepository) GetSession(_a0 string) (*storage.WorkoutSession, er
 }
 
 // UpdateSession provides a mock function with given fields: _a0, _a1
-func (_m *SessionRepository) UpdateSession(_a0 string, _a1 *storage.WorkoutSession) error {
+func (_m *SessionRepository) UpdateSession(_a0 *string, _a1 *storage.WorkoutSession) error {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -118,7 +118,7 @@ func (_m *SessionRepository) UpdateSession(_a0 string, _a1 *storage.WorkoutSessi
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *storage.WorkoutSession) error); ok {
+	if rf, ok := ret.Get(0).(func(*string, *storage.WorkoutSession) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)

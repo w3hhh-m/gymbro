@@ -11,7 +11,6 @@ import (
 	"net/http"
 )
 
-// UsersHandlerFactory defines the interface for creating user-related handlers.
 type UsersHandlerFactory interface {
 	CreateRegisterHandler() http.HandlerFunc
 	CreateLoginHandler() http.HandlerFunc
@@ -21,14 +20,12 @@ type UsersHandlerFactory interface {
 	CreateOAuthLogoutHandler() http.HandlerFunc
 }
 
-// UserHandlerFactory implements the UsersHandlerFactory interface.
 type UserHandlerFactory struct {
 	log  *slog.Logger
 	repo storage.UserRepository
 	cfg  *config.Config
 }
 
-// NewUserHandlerFactory creates a new instance of UserHandlerFactory.
 func NewUserHandlerFactory(log *slog.Logger, repo storage.UserRepository, cfg *config.Config) *UserHandlerFactory {
 	return &UserHandlerFactory{
 		log:  log,

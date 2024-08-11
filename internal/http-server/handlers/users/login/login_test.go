@@ -20,13 +20,13 @@ import (
 )
 
 func TestLoginHandler(t *testing.T) {
-	cfg := &config.Config{
-		JWTLifetime: 1 * time.Hour,
-		SecretKey:   "test_secret_key",
-	}
+	cfg := &config.Config{JWTCfg: config.JWTCfg{SecretKey: "test", JWTLifetime: time.Hour}}
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+
+	emailValue := "test@example.com"
+	email := &emailValue
 
 	tests := []struct {
 		name               string
@@ -42,7 +42,7 @@ func TestLoginHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
+				userRepo.On("GetUserByEmail", email).Return(&storage.User{
 					Email:    "test@example.com",
 					Password: string(hashedPassword),
 				}, nil)
@@ -58,25 +58,35 @@ func TestLoginHandler(t *testing.T) {
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
+			name: "ValidationError",
+			reqBody: login.Request{
+				Email:    "invalid-email",
+				Password: "",
+			},
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeValidationError},
+		},
+		{
 			name: "UserNotFound",
 			reqBody: login.Request{
 				Email:    "test@example.com",
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
+				userRepo.On("GetUserByEmail", email).Return(nil, storage.ErrUserNotFound)
 			},
-			expectedStatusCode: http.StatusNotFound,
-			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeNotFound},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 		{
 			name: "InvalidCredentials",
 			reqBody: login.Request{
 				Email:    "test@example.com",
-				Password: "wrong",
+				Password: "wrongpassword",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
+				userRepo.On("GetUserByEmail", email).Return(&storage.User{
 					Email:    "test@example.com",
 					Password: string(hashedPassword),
 				}, nil)
@@ -91,19 +101,10 @@ func TestLoginHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, errors.New("database error"))
+				userRepo.On("GetUserByEmail", email).Return(nil, errors.New("database error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
-		},
-		{
-			name: "InvalidValidation",
-			reqBody: map[string]string{
-				"email": "invalid-email",
-			},
-			setupMock:          func(userRepo *mocks.UserRepository) {},
-			expectedStatusCode: http.StatusBadRequest,
-			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeValidationError},
 		},
 	}
 
@@ -127,8 +128,8 @@ func TestLoginHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, tt.expectedResponse.Status, response.Status)
-			if tt.expectedResponse.Error != "" {
-				require.Contains(t, response.Error, tt.expectedResponse.Error)
+			if tt.expectedResponse.Code != "" {
+				require.Equal(t, tt.expectedResponse.Code, response.Code)
 			}
 
 			userRepo.AssertExpectations(t)

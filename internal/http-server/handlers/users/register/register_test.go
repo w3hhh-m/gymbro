@@ -20,6 +20,9 @@ import (
 func TestRegisterHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 
+	emailValue := "test@example.com"
+	email := &emailValue
+
 	tests := []struct {
 		name               string
 		reqBody            interface{}
@@ -35,11 +38,11 @@ func TestRegisterHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
-				userRepo.On("RegisterNewUser", mock.Anything).Return(func(u storage.User) *string {
+				userRepo.On("GetUserByEmail", email).Return(nil, storage.ErrUserNotFound)
+				userRepo.On("RegisterNewUser", mock.Anything).Return(func() *string {
 					id := "new_user_id"
 					return &id
-				}, nil)
+				}(), nil)
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusOK},
@@ -70,7 +73,7 @@ func TestRegisterHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(&storage.User{
+				userRepo.On("GetUserByEmail", email).Return(&storage.User{
 					Email: "test@example.com",
 				}, nil)
 			},
@@ -85,7 +88,7 @@ func TestRegisterHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, storage.ErrUserNotFound)
+				userRepo.On("GetUserByEmail", email).Return(nil, storage.ErrUserNotFound)
 				userRepo.On("RegisterNewUser", mock.Anything).Return(nil, errors.New("database error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
@@ -99,10 +102,23 @@ func TestRegisterHandler(t *testing.T) {
 				Password: "password123",
 			},
 			setupMock: func(userRepo *mocks.UserRepository) {
-				userRepo.On("GetUserByEmail", "test@example.com").Return(nil, errors.New("database error"))
+				userRepo.On("GetUserByEmail", email).Return(nil, errors.New("database error"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeInternalError},
+		},
+		{
+			name: "RestrictedFieldSet",
+			reqBody: storage.User{
+				Username: "testuser",
+				Email:    "test@example.com",
+				Password: "password123",
+				UserId:   "some_id",
+				Points:   100,
+			},
+			setupMock:          func(userRepo *mocks.UserRepository) {},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedResponse:   resp.DetailedResponse{Status: resp.StatusError, Code: resp.CodeBadRequest},
 		},
 	}
 
@@ -126,8 +142,8 @@ func TestRegisterHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, tt.expectedResponse.Status, response.Status)
-			if tt.expectedResponse.Error != "" {
-				require.Contains(t, response.Error, tt.expectedResponse.Error)
+			if tt.expectedResponse.Code != "" {
+				require.Equal(t, tt.expectedResponse.Code, response.Code)
 			}
 
 			userRepo.AssertExpectations(t)

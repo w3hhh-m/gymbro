@@ -9,34 +9,31 @@ import (
 	"net/http"
 )
 
-// MiddlewaresHandlerFactory defines the interface for creating middleware handlers.
 type MiddlewaresHandlerFactory interface {
 	CreateJWTAuthHandler() func(http.Handler) http.Handler
 	CreateActiveSessionHandler() func(http.Handler) http.Handler
 }
 
-// MiddlewareHandlerFactory implements the MiddlewaresHandlerFactory interface.
 type MiddlewareHandlerFactory struct {
-	log   *slog.Logger
-	urepo storage.UserRepository
-	srepo storage.SessionRepository
-	cfg   *config.Config
+	log         *slog.Logger
+	userRepo    storage.UserRepository
+	sessionRepo storage.SessionRepository
+	cfg         *config.Config
 }
 
-// NewMiddlewareHandlerFactory creates a new instance of MiddlewareHandlerFactory.
-func NewMiddlewareHandlerFactory(log *slog.Logger, urepo storage.UserRepository, srepo storage.SessionRepository, cfg *config.Config) *MiddlewareHandlerFactory {
+func NewMiddlewareHandlerFactory(log *slog.Logger, userRepo storage.UserRepository, sessionRepo storage.SessionRepository, cfg *config.Config) *MiddlewareHandlerFactory {
 	return &MiddlewareHandlerFactory{
-		log:   log,
-		urepo: urepo,
-		srepo: srepo,
-		cfg:   cfg,
+		log:         log,
+		userRepo:    userRepo,
+		sessionRepo: sessionRepo,
+		cfg:         cfg,
 	}
 }
 
 func (f *MiddlewareHandlerFactory) CreateJWTAuthHandler() func(http.Handler) http.Handler {
-	return mwjwt.WithJWTAuth(f.log, f.urepo, f.cfg)
+	return mwjwt.WithJWTAuth(f.log, f.userRepo, f.cfg)
 }
 
 func (f *MiddlewareHandlerFactory) CreateActiveSessionHandler() func(http.Handler) http.Handler {
-	return mwworkout.WithActiveSessionCheck(f.log, f.srepo)
+	return mwworkout.WithActiveSessionCheck(f.log, f.sessionRepo)
 }

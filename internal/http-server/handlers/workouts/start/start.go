@@ -12,16 +12,15 @@ import (
 	"time"
 )
 
-// NewStartHandler returns a handler function to initiate a new workout session for a user.
-func NewStartHandler(log *slog.Logger, sessionRepo storage.SessionRepository) http.HandlerFunc {
+// NewStartHandler creates an HTTP handler to start a new workout session.
+// It checks for existing active sessions, creates a new session, and updates user status. (2 sessionRepo calls, 1 userRepo call)
+func NewStartHandler(log *slog.Logger, sessionRepo storage.SessionRepository, userRepo storage.UserRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.workouts.start.New"
-		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())))
-
 		userID := jwt.GetUserIDFromContext(r.Context())
-		activeSession, err := sessionRepo.GetSession(userID)
+		log = log.With(slog.String("op", op), slog.Any("request_id", middleware.GetReqID(r.Context())), slog.String("user_id", userID))
 
-		// Check if the user already has an active workout session
+		activeSession, err := sessionRepo.GetSession(&userID)
 		if activeSession != nil {
 			log.Debug("User already has active workout", slog.String("user_id", userID))
 			render.Status(r, http.StatusConflict)
@@ -29,26 +28,33 @@ func NewStartHandler(log *slog.Logger, sessionRepo storage.SessionRepository) ht
 			return
 		}
 
-		if !errors.Is(err, storage.ErrNoSession) {
-			log.Error("Cant get session", slog.String("user_id", userID), slog.Any("error", err))
+		if err != nil {
+			if !errors.Is(err, storage.ErrNoSession) {
+				log.Error("Cant get session", slog.String("user_id", userID), slog.Any("error", err))
+				render.Status(r, http.StatusInternalServerError)
+				render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
+				return
+			}
+		}
+
+		session := &storage.WorkoutSession{
+			SessionID:   storage.GenerateUID(),
+			UserID:      userID,
+			StartTime:   time.Now(),
+			LastUpdated: time.Now(),
+			Records:     []storage.Record{},
+			Points:      0,
+		}
+
+		if err := sessionRepo.CreateSession(session); err != nil {
+			log.Error("Failed to CREATE session", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return
 		}
 
-		session := storage.WorkoutSession{
-			SessionID:   storage.GenerateUID(),
-			UserID:      userID,
-			StartTime:   time.Now(),
-			LastUpdated: time.Now(),
-			IsActive:    true,
-			Records:     []storage.Record{},
-			Points:      0,
-		}
-
-		// Save the new workout to the sessionrepo
-		if err := sessionRepo.CreateSession(session); err != nil {
-			log.Error("Failed to create session", slog.Any("error", err))
+		if err := userRepo.ChangeStatus(&userID, true); err != nil {
+			log.Error("Failed to CHANGE user status", slog.Any("error", err))
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("Internal error", resp.CodeInternalError, "Please try again later"))
 			return

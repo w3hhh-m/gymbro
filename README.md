@@ -106,13 +106,9 @@ This streamlined setup ensures that app runs efficiently, securely manages user 
     │   │   │   │       add.go
     │   │   │   │       add_test.go
     │   │   │   │
-    │   │   │   ├───delete
-    │   │   │   │       delete.go
-    │   │   │   │       delete_test.go
-    │   │   │   │
-    │   │   │   └───update
-    │   │   │           update.go
-    │   │   │           update_test.go
+    │   │   │   └───delete
+    │   │   │           delete.go
+    │   │   │           delete_test.go
     │   │   │
     │   │   ├───response == Common response things for all handlers
     │   │   │       response.go
@@ -159,11 +155,17 @@ This streamlined setup ensures that app runs efficiently, securely manages user 
     │               workout_test.go
     │
     ├───lib
-    │   ├───jwt
+    │   ├───jwt == Custom JWT getter, generator, validator
     │   │       jwt.go
     │   │
-    │   └───prettylogger == Pretty logs for local env
-    │           prettylogger.go
+    │   ├───points == Points calc
+    │   │       points.go
+    │   │
+    │   ├───prettylogger == Pretty logs for local env
+    │   │       prettylogger.go
+    │   │
+    │   └───validation == Custom validation messages
+    │           validation.go
     │
     └───storage
         │   storage.go == Common things for all possible storages (not only postgres)
@@ -176,6 +178,6 @@ This streamlined setup ensures that app runs efficiently, securely manages user 
         ├───postgresql == Code only related to PostgreSQL storage
         │        postgresql.go
         │
-        └───redis Code only related to Redis storage
+        └───redis == Code only related to Redis storage
                 redis.go
 ```
