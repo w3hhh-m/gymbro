@@ -1,4 +1,2 @@
 .idea
 .golangci.yaml
-go.mod
-go.sum
